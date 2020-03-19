@@ -10,15 +10,8 @@ def priorTransform(theta, bounds):
     
     Parameters:
         theta  : is a random vector with de dimensionality of the model.
-        bounds : list of tuples with lower and higher bound for each parameter.
+        bounds : list lower and higher bound.
     """
-    #priors = []
-    #for c, bound in enumerate(bounds):
-        #When theta 0-> append bound[0], if theta 1-> append bound[1]
-     #   priors.append(theta[c]*(bound[1]-bound[0])+bound[0])
-    
-    #return np.array(priors)
-    #print("PRIOR: ", np.array(theta*(bounds[1]-bounds[0])+bounds[0]))
     return  np.array(theta*(bounds[1]-bounds[0])+bounds[0])
 
 sigma = 0.5 # standard deviation of the noise
@@ -35,13 +28,13 @@ def logLike(theta):
     m, c = theta # unpack the parameters
 
     # normalisation
-    #norm = -0.5*M*LN2PI - M*LNSIGMA
+    norm = -0.5*M*LN2PI - M*LNSIGMA
 
     # chi-squared (data, sigma and x are global variables defined early on in this notebook)
     chisq = np.sum(((data-theory(x, m, c))/sigma)**2)
 
     #return norm - 0.5*chisq
-    return -0.5*chisq
+    return norm -0.5*chisq
 
 
 def theory(x, m, c):
@@ -76,7 +69,7 @@ data = theory(x, m, c) + sigma*np.random.randn(M)
 
 ####################### Here begin the nested sampling##########################
 
-def replace(lpoint, llike, priormass, bounds, priorTransform):
+def replace(lpoint, llike, bounds):
     """
     This functions recieves the point with the lowest likelihood and generates one with higher likelihood.
     
@@ -87,12 +80,12 @@ def replace(lpoint, llike, priormass, bounds, priorTransform):
         priorT      :   Prior transform
     """
     new_point = lpoint
-    new_loglike = llike
+    new_loglike = llike - 0.1
 
-    while (new_loglike <= llike):
+    while (new_loglike < llike):
         #print("finding best likeli")
         #print("new point  = llike", new_point)
-        new_point = priorTransform(np.random.rand(dim,), bounds*priormass)  
+        new_point = priorTransform(np.random.rand(dim,), bounds)  
         #print("new point 1", new_point)
         new_loglike = logLike(new_point)       
     print("better point")
@@ -144,11 +137,17 @@ for i in range(j):
     wi = xi - xf
     z += lowerlike * wi
     #replace lower like point
-    newpoint, newlike = replace(lowerpoint, lowerlike, xf, bounds, priorTransform)
+    print("prior mass {}".format(xf))
+    bounds = xf*bounds
+    print("bounds remain {}".format(bounds))
+    newpoint, newlike = replace(lowerpoint, lowerlike, bounds)
     print("new point {} \n".format(newpoint))
     print("Z : {} ".format(z))
     
+    print("logZ : {} ".format(np.log(z)))
+
     df.iloc[0] = newpoint, newlike
+
 
 print(df['loglikes'].values)
 z += (1/N)*xf*np.sum(df['loglikes'].values)
