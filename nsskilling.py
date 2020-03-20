@@ -69,7 +69,8 @@ data = theory(x, m, c) + sigma*np.random.randn(M)
 
 ####################### Here begin the nested sampling##########################
 
-def replace(lpoint, llike, bounds):
+#def replace(lpoint, llike, bounds):
+def replace(lpoint, llike, hpoint):
     """
     This functions recieves the point with the lowest likelihood and generates one with higher likelihood.
     
@@ -79,10 +80,13 @@ def replace(lpoint, llike, bounds):
         priormass   :   Prior mass
         priorT      :   Prior transform
     """
-    new_point = lpoint
-    new_loglike = llike - 0.1
-
-    while (new_loglike < llike):
+    #new_point = lpoint
+    new_point = (lpoint+hpoint)/2
+    new_loglike = llike
+    i=0
+    while (new_loglike <= llike):
+        i+=1
+        print("it of replace function : ", i)
         #print("finding best likeli")
         #print("new point  = llike", new_point)
         new_point = priorTransform(np.random.rand(dim,), bounds)  
@@ -94,7 +98,7 @@ def replace(lpoint, llike, bounds):
 
     
 #N is the number of live points    
-N = 10
+N = 50
 #dim is the dimension or the number of free parameters
 dim = 2
 
@@ -138,13 +142,15 @@ for i in range(j):
     z += lowerlike * wi
     #replace lower like point
     print("prior mass {}".format(xf))
-    bounds = xf*bounds
+    ####I have a problem when the bounds are reduced by the remained prior mass. 
+    #If I comment the next line, the code works.
+    #bounds = xf*bounds
     print("bounds remain {}".format(bounds))
     newpoint, newlike = replace(lowerpoint, lowerlike, bounds)
     print("new point {} \n".format(newpoint))
     print("Z : {} ".format(z))
     
-    print("logZ : {} ".format(np.log(z)))
+    #print("logZ : {} ".format(np.log(z)))
 
     df.iloc[0] = newpoint, newlike
 
@@ -152,7 +158,9 @@ for i in range(j):
 print(df['loglikes'].values)
 z += (1/N)*xf*np.sum(df['loglikes'].values)
 highestpoint, highestlike = df.iloc[N-1]
-print("Parameter estimation : \n {}  \n ".format(df['points'].values))
+#print("Parameter estimation : \n {}  \n ".format(df['points'].values))
+print("Parameter estimation : \n {}  \n ".format(highestpoint))
+print("Likelihood : \n {}  \n ".format(highestlike))
 print("Bayesian Evidence : {}".format(z))
-print("log Z : {}".format(np.log(z)))
+print("log Z : {}".format(np.log(-z)))
 
