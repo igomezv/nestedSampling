@@ -19,8 +19,7 @@ Remaining prior mass :
 
 where : 
 
-![formula](https://render.githubusercontent.com/render/math?math=Pr(t_i) = N t_i^{N-1} \in (0,1))
+<img src="https://render.githubusercontent.com/render/math?math=Pr(t_i) = N t_i^{N-1} \in (0,1)">
 
 
-
-where N i
+where N is the number of live points and t_i the largest of N random numbers from Uniform(0, 1). 
