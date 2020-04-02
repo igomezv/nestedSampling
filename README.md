@@ -10,7 +10,7 @@ Evidence:
 
 Initial prior mass:
 
-<img src="https://render.githubusercontent.com/render/math?math= X_0 = 1">
+<img src="https://render.githubusercontent.com/render/math?math=X_0 = 1">
 
 
 Remaining prior mass : 
@@ -19,7 +19,8 @@ Remaining prior mass :
 
 where : 
 
-<img src="https://render.githubusercontent.com/render/math?math=Pr(t_i) = N t_i^{N-1} \in (0,1)">
+![formula](https://render.githubusercontent.com/render/math?math=Pr(t_i) = N t_i^{N-1} \in (0,1))
+
 
 
 where N i
