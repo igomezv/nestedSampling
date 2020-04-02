@@ -1,8 +1,10 @@
 # nestedSampling
+
 Toy nested sampling
 
 Evidence: 
-$$Z = \sum_{i=1}^m w_i(t) L_i$$
+<img src="https://render.githubusercontent.com/render/math?math=Z = \sum_{i=1}^m w_i(t) L_i">
+
 
 Initial prior mass X_0 = 1.
 
