@@ -2,7 +2,7 @@
 Toy nested sampling
 
 Evidence: 
-Z = \sum_{i=1}^m w_i(t) L_i
+$$Z = \sum_{i=1}^m w_i(t) L_i$$
 
 Initial prior mass X_0 = 1.
 
