@@ -96,12 +96,9 @@ class SkillingNS:
             self.print_func(df_live, logz)
             logx_prev = logx_current
 
-        logz += (1 / self.nlivepoints) * \
-            np.sum(df_live['loglikes'].values) * logx_current
+        logz +=  np.sum(df_live['loglikes'].values) * logx_current / self.nlivepoints
 
-            
-
-
+    
         df_dead = pd.DataFrame()
         df_dead['points'] = deadpoints
         df_dead['loglikes'] = deadloglikes
