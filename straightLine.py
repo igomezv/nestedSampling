@@ -66,8 +66,10 @@ def theory(x, m, c):
 
 # ##########create some data#######################################
 # set the true values of the model parameters for creating the data
-m = 4.2  # gradient of the line
-c = 2.1  # y-intercept of the line
+#m = 4.2  # gradient of the line
+#c = 2.1  # y-intercept of the line
+m = 3.5  # gradient of the line
+c = 1.2  # y-intercept of the line
 
 # set the "predictor variable"/abscissa
 M = 100
@@ -83,10 +85,11 @@ data = theory(x, m, c) + sigma*np.random.randn(M)
 
 # bounds = [[bound_inf_m, bound_sup_m], [bound_inf_c, bound_sup_c]]
 
-bounds = [[1, 10], [0.1, 8]]
+bounds = [[0, 10], [-2, 6]]
 # ##################Run Nested Sampling #########################
 nDims = 2
 
 sampler = SkillingNS(logLike, priorTransform, nDims, bounds, nlivepoints=100)
 
 sampler.sampler()
+
