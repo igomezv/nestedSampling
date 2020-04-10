@@ -45,12 +45,8 @@ def logLike(theta):
     """
     m, c = theta  # unpack the parameters
 
-    # normalisation
-    #norm = -0.5*M*LN2PI - M*LNSIGMA
-
     chisq = np.sum(((data-theory(x, m, c))/sigma)**2)
 
-    # return norm - 0.5*chisq
     return -0.5*chisq
 
 
@@ -70,8 +66,8 @@ def theory(x, m, c):
 
 # ##########create some data#######################################
 # set the true values of the model parameters for creating the data
-m = 3.5  # gradient of the line
-c = 1.2  # y-intercept of the line
+m = 4.2  # gradient of the line
+c = 2.1  # y-intercept of the line
 
 # set the "predictor variable"/abscissa
 M = 100

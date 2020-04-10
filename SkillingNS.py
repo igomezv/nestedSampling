@@ -1,7 +1,6 @@
 # Nested sampling based on Skilling (2009)
 import numpy as np
 import pandas as pd
-from time import sleep
 
 # ###################### Here begin the nested sampling
 
@@ -29,112 +28,126 @@ class SkillingNS:
         self.bounds = bounds
         self.nlivepoints = nlivepoints
         self.accuracy = accuracy
-        # in order to save live and death points
-        self.livepoints = []
-        self.deathpoints = []
+        # in order to save live and dead points
+        # self.livepoints = []
+        # self.deadpoints = []
 
     def sampler(self):
         vectors = []
-        # test = np.random.rand(self.nDims,)
-        for i in range(self.nDims):
-            vectors.append(self.priorTransform(np.random.rand(self.nDims,),
-                                               self.bounds))
-        # 2) initialise S = 0, X_0 = 1
-        # evidence is z
-        print("bounds", self.bounds)
-        logz = 0
-        # initial prior mass is x0 = 1
-        xp = 1
-        h = 0.0
         # vector of loglikes
         loglikes = []
-        for vector in vectors:
-            loglikes.append(self.logLike(vector))
+        # list for dead values
+        deadpoints = []
+        deadloglikes = []
+
+        for i in range(self.nlivepoints):
+            vectors.append(self.priorTransform(np.random.rand(self.nDims,),
+                                               self.bounds))
+            loglikes.append(self.logLike(vectors[i]))
+
         # join loglikes and points
-        df = pd.DataFrame()
-        df['points'] = vectors
-        df['loglikes'] = loglikes
+        df_live = pd.DataFrame()
+        df_live['points'] = vectors
+        df_live['loglikes'] = loglikes
 
-        print("data frame", df.head())
+        print("data frame", df_live.head())
+        # 2) initialise S = 0, X_0 = 1
+        # evidence is z
+        # print("bounds", self.bounds)
+        logz = 0
+
+        # initial prior mass is x0 = 1
+        logx_prev = 1
+        h = 0
         # j iterations
-        j = 200
+        j = 10000
 
-        for i in range(1, j + 1):
-            print("Iteration {}".format(i))
+        for i in range(j):
+            print("Iteration {}".format(i + 1))
             # sort points by loglikes
-            df.sort_values('loglikes', inplace=True)
-            df.reset_index(drop=True, inplace=True)
+            df_live.sort_values('loglikes', inplace=True)
+            df_live.reset_index(drop=True, inplace=True)
             # sleep(0.5)
             # record the lower loglike,  L_i in the skilling paper
-            lowpoint, lowloglike = df.iloc[0]
-
+            lowpoint, lowloglike = df_live.iloc[0]
+            deadloglikes.append(lowloglike)
+            deadpoints.append(lowpoint)
             # new prior mass X_i in the paper [crude]
-            xi = np.exp(-i / self.nlivepoints)
+            logx_current = np.exp(-(i + 1) / self.nlivepoints)
             # xi = -i / self.nlivepoints
-            print("X_i : {}".format(xi))
+            print("X_i : {}".format(logx_current))
             # wi simple (no trapezoidal)
-            wi = xp - xi
+            wi = logx_prev - logx_current
             print("w_i : {}".format(wi))
             # z increment
             logz += lowloglike * wi
-            print("log(Z) : {}".format(logz))
-            # replace lower like point
 
+            # THIS IS BAD, RIGHT?
             # for i, _ in enumerate(self.bounds):
             #     self.bounds[i][0] = self.bounds[i][0] * xi
             #     self.bounds[i][1] = self.bounds[i][1] * xi
 
             # print("bounds out", self.bounds)
 
-            newpoint, newlike, accepted, rechazed = self.new_point(
-                lowpoint, lowloglike, self.bounds)
+            newpoint, newlike = self.generate_point(lowpoint, lowloglike)
 
             print("new point {} \n".format(newpoint))
-            df.iloc[0] = newpoint, newlike
-            self.print_func(df, logz, xi)
-            xp = xi
+            df_live.iloc[0] = newpoint, newlike
+            logz += (1 / self.nlivepoints) * \
+                np.sum(df_live['loglikes'].values) * logx_current
 
-    def new_point(self, lpoint, llike, bounds):
+            self.print_func(df_live, logz)
+            logx_prev = logx_current
+
+        df_dead = pd.DataFrame()
+        df_dead['points'] = deadpoints
+        df_dead['loglikes'] = deadloglikes
+        samples = pd.concat([df_dead, df_live], ignore_index=True)
+        # Only in order to visualize the total samples:
+        for row in samples.values:
+        	print(row)
+
+    def generate_point(self, lpoint, llike):
         """
             This functions recieves the point 
             with the lowest likelihood and generates one with higher 
-                    likelihood.
+            Likelihood.
 
             Parameters:
-                ------------
+		    ------------
 
-                    lowpoint      :   point with lower likelihood.
-                    lowlike       :   lower likelihood.
-                    priormass   :   Prior mass
-                    priorT      :   Prior transform
-        """
-        accepted = 0
-        rechazed = 0
-        ncall = 0
+		    lowpoint      :   point with lower likelihood.
+		    lowlike       :   lower likelihood.
+		    riormass   :   Prior mass
+		    priorT      :   Prior transform
+	    """
+
+        self.accepted = 0
+        self.rejected = 0
+        self.ncall = 0
         new_point = lpoint
         new_loglike = llike
-        # while (new_loglike < llike or accepted == 0):
-        while (ncall < 100 or accepted == 0):
-        #print("new point  = llike", new_point)
-        	new_point = self.priorTransform(np.random.rand(self.nDims,), bounds)
-        	#print("new point 1", new_point)
-        	new_loglike = self.logLike(new_point)
-        	if new_loglike > llike:
-        		accepted += 1
-        	else: 
-        		rechazed += 1
-        	
-        	ncall += 1
-        return new_point, new_loglike, accepted, rechazed
+        # while (ncalls < 1000 or accepted == 0):
+        while (new_loglike < llike or self.accepted == 0):
+            # print("new point  = llike", new_point)
+            proposal_point = np.random.rand(self.nDims,)
+            # new_point = self.priorTransform(proposal_point, bounds)
+            new_point = self.priorTransform(proposal_point, self.bounds)
+            new_loglike = self.logLike(new_point)
+            if new_loglike > llike:
+                self.accepted += 1
+            else:
+                self.rejected += 1
 
-    def print_func(self, df, logz, xf):
-        # print(df['loglikes'].values)
-        logz += 1 / self.nDims * xf * np.sum(df['loglikes'].values)
+            self.ncall += 1
+        return new_point, new_loglike
 
-        highestpoint, highestlike = df.iloc[self.nDims - 1]
-        # print("Parameter estimation : \n {}  \n ".format(
-        #     df['points'].values))
+    def print_func(self, df, logz):
+        print("Accepted: {} || Rejected: {} || ncalls: {}".format(
+            					self.accepted, self.rejected, self.ncall))
+
+        highestpoint, highestlike = df.iloc[self.nlivepoints - 1]
         print("Parameter estimation : {}".format(highestpoint))
-        print("Likelihood : \n {} ".format(highestlike))
-        print("Bayesian Evidence : {}".format(logz))
+        print("logLikelihood : {}".format(highestlike))
+        print("log(Z) : {}".format(logz))
         # print("log Z : {}".format(np.log(-z)))
