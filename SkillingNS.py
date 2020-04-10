@@ -28,9 +28,6 @@ class SkillingNS:
         self.bounds = bounds
         self.nlivepoints = nlivepoints
         self.accuracy = accuracy
-        # in order to save live and dead points
-        # self.livepoints = []
-        # self.deadpoints = []
 
     def sampler(self):
         vectors = []
@@ -49,16 +46,19 @@ class SkillingNS:
         df_live = pd.DataFrame()
         df_live['points'] = vectors
         df_live['loglikes'] = loglikes
-
+        print (loglikes)
         print("data frame", df_live.head())
         # 2) initialise S = 0, X_0 = 1
         # evidence is z
         # print("bounds", self.bounds)
-        logz = 0
-
+        # logz = -1e50
+        z = 0
         # initial prior mass is x0 = 1
-        logx_prev = 1
-        h = 0
+        # x_prev = 1 -> logx =0
+        # logx_prev = 0
+        x_prev = 1
+
+        # h = 0
         # j iterations
         j = 10000
 
@@ -73,14 +73,15 @@ class SkillingNS:
             deadloglikes.append(lowloglike)
             deadpoints.append(lowpoint)
             # new prior mass X_i in the paper [crude]
-            logx_current = np.exp(-(i + 1) / self.nlivepoints)
+            # logx_current = np.exp(-(i + 1) / self.nlivepoints)
+            x_current = np.exp(-(i + 1) / self.nlivepoints)
             # xi = -i / self.nlivepoints
-            print("X_i : {}".format(logx_current))
+            print("X_i : {}".format(x_current))
             # wi simple (no trapezoidal)
-            wi = logx_prev - logx_current
+            wi = x_prev - x_current
             print("w_i : {}".format(wi))
             # z increment
-            logz += lowloglike * wi
+            z += np.exp(lowloglike) * wi
 
             # THIS IS BAD, RIGHT?
             # for i, _ in enumerate(self.bounds):
@@ -93,10 +94,10 @@ class SkillingNS:
 
             print("new point {} \n".format(newpoint))
             df_live.iloc[0] = newpoint, newlike
-            self.print_func(df_live, logz)
-            logx_prev = logx_current
+            self.print_func(df_live, z)
+            x_prev = x_current
 
-        logz +=  np.sum(df_live['loglikes'].values) * logx_current / self.nlivepoints
+        z +=  np.sum(np.exp(df_live['loglikes'].values)) * x_current / self.nlivepoints
 
     
         df_dead = pd.DataFrame()
@@ -142,12 +143,12 @@ class SkillingNS:
             self.ncall += 1
         return new_point, new_loglike
 
-    def print_func(self, df, logz):
+    def print_func(self, df, z):
         print("Accepted: {} || Rejected: {} || ncalls: {}".format(
             					self.accepted, self.rejected, self.ncall))
 
         highestpoint, highestlike = df.iloc[self.nlivepoints - 1]
         print("Parameter estimation : {}".format(highestpoint))
         print("logLikelihood : {}".format(highestlike))
-        print("log(Z) : {}".format(logz))
+        print("log(Z) : {}".format(np.log(z)))
         # print("log Z : {}".format(np.log(-z)))
