@@ -2,9 +2,6 @@
 import numpy as np
 import pandas as pd
 
-# ###################### Here begin the nested sampling
-
-
 class SkillingNS:
     def __init__(self, logLike, priorTransform, nDims, bounds, nlivepoints=10,
                  accuracy=0.5, **kwargs):
@@ -40,7 +37,7 @@ class SkillingNS:
         f = open(self.outputname + '.txt', 'a+')
 
         for i in range(self.nlivepoints):
-            vectors.append(self.priorTransform(np.random.rand(self.nDims,),
+            vectors.append(self.priorTransform(np.random.rand(self.nDims, ),
                                                self.bounds))
             loglikes.append(self.logLike(vectors[i]))
             strvector = str(vectors[i]).lstrip('[').rstrip(']')
@@ -50,7 +47,7 @@ class SkillingNS:
         df_live = pd.DataFrame()
         df_live['points'] = vectors
         df_live['loglikes'] = loglikes
-        print (loglikes)
+        print(loglikes)
         print("data frame", df_live.head())
         # 2) initialise S = 0, X_0 = 1
         # evidence is z
@@ -104,7 +101,7 @@ class SkillingNS:
             f.write("{} {} {}\n".format(wi, newlike, strnewpoint))
 
         f.close()
-        z +=  np.sum(np.exp(df_live['loglikes'].values)) * x_current / self.nlivepoints
+        z += np.sum(np.exp(df_live['loglikes'].values)) * x_current / self.nlivepoints
 
         df_dead = pd.DataFrame()
         df_dead['points'] = deadpoints
@@ -112,7 +109,7 @@ class SkillingNS:
         samples = pd.concat([df_dead, df_live], ignore_index=True)
         # Only in order to visualize the total samples:
         for row in samples.values:
-        	print(row)
+            print(row)
 
     def generate_point(self, lpoint, llike):
         """
@@ -134,14 +131,14 @@ class SkillingNS:
         new_point = lpoint
         new_loglike = llike
         # while (ncalls < 1000 or accepted == 0):
-        while(new_loglike < llike or self.accepted == 0):
+        while (new_loglike < llike or self.accepted == 0):
             # print("new point  = llike", new_point)
-            proposal_point = np.random.rand(self.nDims,)
+            proposal_point = np.random.rand(self.nDims, )
             # new_point = self.priorTransform(proposal_point, bounds)
             new_point = self.priorTransform(proposal_point, self.bounds)
             new_loglike = self.logLike(new_point)
             if new_loglike == llike:
-                epsilon = 1e-10*np.random.rand()
+                epsilon = 1e-10 * np.random.rand()
                 # See equation 6 of Skilling's paper
                 # What is a good value for epsilon?
                 self.accepted += 1
@@ -155,7 +152,7 @@ class SkillingNS:
 
     def print_func(self, df, z):
         print("Accepted: {} || Rejected: {} || ncalls: {}".format(
-            					self.accepted, self.rejected, self.ncall))
+            self.accepted, self.rejected, self.ncall))
 
         highestpoint, highestlike = df.iloc[self.nlivepoints - 1]
         print("Parameter estimation : {}".format(highestpoint))
