@@ -61,7 +61,7 @@ def theory(x, m, c):
         c (float): the y-intercept of the line
     """
 
-    return m * x + c
+    return m*x+c
 
 
 # ##########create some data#######################################
@@ -92,4 +92,3 @@ nDims = 2
 sampler = SkillingNS(logLike, priorTransform, nDims, bounds, nlivepoints=100)
 
 sampler.sampler()
-

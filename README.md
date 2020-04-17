@@ -4,7 +4,7 @@ Toy nested sampling based on Skilling (2006) Nested Sampling for General Bayesia
 
 Prior mass:
 
-<img src="https://render.githubusercontent.com/render/math?math=\int_{L(\theta)>\lambda} \pi (\theta) d \theta">
+<img src="https://render.githubusercontent.com/render/math?math=\int_{L(\theta) > \lambda} \pi (\theta) d \theta">
 
 Evidence: 
 <img src="https://render.githubusercontent.com/render/math?math=Z=\int_0^1 L(X) dX">

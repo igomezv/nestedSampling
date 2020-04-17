@@ -28,6 +28,7 @@ class SkillingNS:
         self.bounds = bounds
         self.nlivepoints = nlivepoints
         self.accuracy = accuracy
+        self.outputname = "outputSamples"
 
     def sampler(self):
         vectors = []
@@ -36,11 +37,14 @@ class SkillingNS:
         # list for dead values
         deadpoints = []
         deadloglikes = []
+        f = open(self.outputname + '.txt', 'a+')
 
         for i in range(self.nlivepoints):
             vectors.append(self.priorTransform(np.random.rand(self.nDims,),
                                                self.bounds))
             loglikes.append(self.logLike(vectors[i]))
+            strvector = str(vectors[i]).lstrip('[').rstrip(']')
+            f.write("{} {} {}\n".format(0, loglikes[i], strvector))
 
         # join loglikes and points
         df_live = pd.DataFrame()
@@ -57,11 +61,11 @@ class SkillingNS:
         # x_prev = 1 -> logx =0
         # logx_prev = 0
         x_prev = 1
+        x_current = 1
 
         # h = 0
         # j iterations
         j = 10000
-
         for i in range(j):
             print("Iteration {}".format(i + 1))
             # sort points by loglikes
@@ -96,10 +100,12 @@ class SkillingNS:
             df_live.iloc[0] = newpoint, newlike
             self.print_func(df_live, z)
             x_prev = x_current
+            strnewpoint = str(newpoint).lstrip('[').rstrip(']')
+            f.write("{} {} {}\n".format(wi, newlike, strnewpoint))
 
+        f.close()
         z +=  np.sum(np.exp(df_live['loglikes'].values)) * x_current / self.nlivepoints
 
-    
         df_dead = pd.DataFrame()
         df_dead['points'] = deadpoints
         df_dead['loglikes'] = deadloglikes
@@ -115,13 +121,12 @@ class SkillingNS:
             Likelihood.
 
             Parameters:
-		    ------------
-
-		    lowpoint      :   point with lower likelihood.
-		    lowlike       :   lower likelihood.
-		    riormass   :   Prior mass
-		    priorT      :   Prior transform
-	    """
+            ------------
+            lowpoint      :   point with lower likelihood.
+            lowlike       :   lower likelihood.
+            riormass   :   Prior mass
+            priorT      :   Prior transform
+        """
 
         self.accepted = 0
         self.rejected = 0
@@ -129,13 +134,18 @@ class SkillingNS:
         new_point = lpoint
         new_loglike = llike
         # while (ncalls < 1000 or accepted == 0):
-        while (new_loglike < llike or self.accepted == 0):
+        while(new_loglike < llike or self.accepted == 0):
             # print("new point  = llike", new_point)
             proposal_point = np.random.rand(self.nDims,)
             # new_point = self.priorTransform(proposal_point, bounds)
             new_point = self.priorTransform(proposal_point, self.bounds)
             new_loglike = self.logLike(new_point)
-            if new_loglike > llike:
+            if new_loglike == llike:
+                epsilon = 1e-10*np.random.rand()
+                # See equation 6 of Skilling's paper
+                # What is a good value for epsilon?
+                self.accepted += 1
+            elif new_loglike > llike:
                 self.accepted += 1
             else:
                 self.rejected += 1
