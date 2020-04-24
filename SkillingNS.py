@@ -55,13 +55,14 @@ class SkillingNS:
         # 2) initialise S = 0, X_0 = 1
         # evidence is z
         # print("bounds", self.bounds)
-        # logz = -1e50
-        z = 0
+        logz = -np.inf
+        # z = 0
         # initial prior mass is x0 = 1
         # x_prev = 1 -> logx =0
-        # logx_prev = 0
-        x_prev = 1
-        x_current = 1
+        logx = 0
+        # x_prev = 1
+        #x_current = 1
+        clogx = 0
 
         # h = 0
         # j iterations
@@ -77,28 +78,35 @@ class SkillingNS:
             deadloglikes.append(lowloglike)
             deadpoints.append(lowpoint)
             # new prior mass X_i in the paper [crude]
-            # logx_current = np.exp(-(i + 1) / self.nlivepoints)
-            x_current = np.exp(-(i + 1) / self.nlivepoints)
+            
+            # x_current = np.exp(-(i + 1) / self.nlivepoints)
+            clogx = -(i + 1) / self.nlivepoints
             # xi = -i / self.nlivepoints
-            print("X_i : {}".format(x_current))
+            print("logX_i : {}".format(clogx))
             # wi simple (no trapezoidal)
-            wi = x_prev - x_current
-            print("w_i : {}".format(wi))
+            #wi = x_prev - x_current
+            logwi = np.logaddexp(logx, -clogx)
+            
+            print("logw_i : {}".format(logwi))
+            logLwi = lowloglike - logwi
             # z increment
-            z += np.exp(lowloglike) * wi
+            #z += np.exp(lowloglike) * wi
+            logz = np.logaddexp(logz, logLwi)
             print("lowpoint {}".format(lowpoint))
             # newpoint, newlike = self.generate_point(lowpoint, lowloglike)
             newpoint, newlike = self.metropolis(lowpoint, lowloglike, 500)
 
             print("new point {} \n".format(newpoint))
             df_live.iloc[0] = newpoint, newlike
-            self.print_func(df_live, z)
-            x_prev = x_current
+            self.print_func(df_live, logz)
+            # x_prev = x_current
+            logx = clogx
             strnewpoint = str(newpoint).lstrip('[').rstrip(']')
-            f.write("{} {} {}\n".format(wi, newlike, strnewpoint))
+            f.write("{} {} {}\n".format(logwi, newlike, strnewpoint))
 
         f.close()
-        z += np.sum(np.exp(df_live['loglikes'].values)) * x_current / self.nlivepoints
+        logz = np.logaddexp(logz, np.sum(df_live['loglikes'].values + logx - np.log(self.nlivepoints)))
+        #z += np.sum(np.exp(df_live['loglikes'].values)) * x_current / self.nlivepoints
 
         df_dead = pd.DataFrame()
         df_dead['points'] = deadpoints
