@@ -20,6 +20,7 @@ def priorTransform(theta, bounds):
     # print("Prior transform : {}".format(np.array(priors)))
     return np.array(priors)
 
+
 # ==========================================================
 # def gaussianPriorTransform(theta, bounds):
 #     priors = []

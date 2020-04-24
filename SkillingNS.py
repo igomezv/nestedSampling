@@ -26,6 +26,9 @@ class SkillingNS:
         self.nlivepoints = nlivepoints
         self.accuracy = accuracy
         self.outputname = "outputSamples"
+        self.accepted = 0
+        self.rejected = 0
+        # self.ncall = 0
 
     def sampler(self):
         vectors = []
@@ -83,15 +86,9 @@ class SkillingNS:
             print("w_i : {}".format(wi))
             # z increment
             z += np.exp(lowloglike) * wi
-
-            # THIS IS BAD, RIGHT?
-            # for i, _ in enumerate(self.bounds):
-            #     self.bounds[i][0] = self.bounds[i][0] * xi
-            #     self.bounds[i][1] = self.bounds[i][1] * xi
-
-            # print("bounds out", self.bounds)
-
-            newpoint, newlike = self.generate_point(lowpoint, lowloglike)
+            print("lowpoint {}".format(lowpoint))
+            # newpoint, newlike = self.generate_point(lowpoint, lowloglike)
+            newpoint, newlike = self.metropolis(lowpoint, lowloglike, 500)
 
             print("new point {} \n".format(newpoint))
             df_live.iloc[0] = newpoint, newlike
@@ -125,9 +122,6 @@ class SkillingNS:
             priorT      :   Prior transform
         """
 
-        self.accepted = 0
-        self.rejected = 0
-        self.ncall = 0
         new_point = lpoint
         new_loglike = llike
         # while (ncalls < 1000 or accepted == 0):
@@ -147,15 +141,46 @@ class SkillingNS:
             else:
                 self.rejected += 1
 
-            self.ncall += 1
         return new_point, new_loglike
 
     def print_func(self, df, z):
-        print("Accepted: {} || Rejected: {} || ncalls: {}".format(
-            self.accepted, self.rejected, self.ncall))
+        print("Accepted: {} || Rejected: {} ".format(
+            self.accepted, self.rejected))
 
         highestpoint, highestlike = df.iloc[self.nlivepoints - 1]
         print("Parameter estimation : {}".format(highestpoint))
         print("logLikelihood : {}".format(highestlike))
         print("log(Z) : {}".format(np.log(z)))
-        # print("log Z : {}".format(np.log(-z)))
+	
+    def metropolis(self, ctheta, cloglike, iter):
+        logf = lambda x : self.logLike(x) + self.logPrior(x)
+        samples = np.zeros((iter, 2))
+        self.accepted = 0
+        self.rejected = 0
+        
+        for i in range(iter):
+            vstar = np.array(ctheta) + np.random.normal(size=len(ctheta))
+	    	# logLikeStar = self.logLike(vstar)
+            r = np.random.rand()
+            if logf(vstar) - logf(ctheta) > np.log(r):
+                ctheta = vstar
+                cloglike = self.logLike(ctheta)
+                self.accepted+=1
+            else:
+                self.rejected+=1
+            
+        samples[i] = np.array(ctheta)
+        return np.array(ctheta), cloglike
+
+    def logPrior(self, theta):
+        for i, bound in enumerate(self.bounds):
+            if bound[0] < theta[i] < bound[1]:
+                flag = True
+            else:
+                flag = False
+                break  
+        
+        if flag == True:
+            return 0.0
+        else:
+            return -np.inf
