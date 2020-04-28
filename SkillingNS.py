@@ -1,9 +1,12 @@
 # Nested sampling based on Skilling (2009)
 import numpy as np
 import pandas as pd
+import os.path
+from scipy.special import logsumexp
+import sys
 
 class SkillingNS:
-    def __init__(self, logLike, priorTransform, nDims, bounds, nlivepoints=10,
+    def __init__(self, logLike, priorTransform, nDims, bounds, nlivepoints=50,
                  accuracy=0.5, **kwargs):
         """
             Parameters
@@ -37,7 +40,11 @@ class SkillingNS:
         # list for dead values
         deadpoints = []
         deadloglikes = []
-        f = open(self.outputname + '.txt', 'a+')
+        if os.path.isfile(self.outputname+'.txt'):
+    		print("File exist! Please choose another name or move the existing file.")
+    		sys.exit(1)
+    	else:
+        	f = open(self.outputname + '.txt', 'a+')
 
         for i in range(self.nlivepoints):
             vectors.append(self.priorTransform(np.random.rand(self.nDims, ),
@@ -55,8 +62,11 @@ class SkillingNS:
         # 2) initialise S = 0, X_0 = 1
         # evidence is z
         # print("bounds", self.bounds)
-        logz = -np.inf
-        # z = 0
+        # What is a good initial value for logz?
+        # logz = -np.inf
+        # logz = 1e-50
+
+        z = 0
         # initial prior mass is x0 = 1
         # x_prev = 1 -> logx =0
         logx = 0
@@ -68,7 +78,7 @@ class SkillingNS:
         # j iterations
         j = 10000
         for i in range(j):
-            print("Iteration {}".format(i + 1))
+            print("\nIteration {}".format(i + 1))
             # sort points by loglikes
             df_live.sort_values('loglikes', inplace=True)
             df_live.reset_index(drop=True, inplace=True)
@@ -85,38 +95,42 @@ class SkillingNS:
             print("logX_i : {}".format(clogx))
             # wi simple (no trapezoidal)
             #wi = x_prev - x_current
-            logwi = np.logaddexp(logx, -clogx)
+            # Error! use scipy
+            # logwi = np.logaddexp(logx, clogx)
+            logwi = logsumexp([logx, clogx], b = [1, -1])
             
             print("logw_i : {}".format(logwi))
             logLwi = lowloglike - logwi
             # z increment
-            #z += np.exp(lowloglike) * wi
-            logz = np.logaddexp(logz, logLwi)
+            z += np.exp(lowloglike) * np.exp(logwi)
+            # logz = np.logaddexp(logz, logLwi)
             print("lowpoint {}".format(lowpoint))
             # newpoint, newlike = self.generate_point(lowpoint, lowloglike)
             newpoint, newlike = self.metropolis(lowpoint, lowloglike, 500)
 
-            print("new point {} \n".format(newpoint))
+            print("new point {}".format(newpoint))
             df_live.iloc[0] = newpoint, newlike
-            self.print_func(df_live, logz)
+            self.print_func(df_live, np.log(z))
             # x_prev = x_current
             logx = clogx
             strnewpoint = str(newpoint).lstrip('[').rstrip(']')
-            f.write("{} {} {}\n".format(logwi, newlike, strnewpoint))
+            f.write("{} {} {}".format(logwi, newlike, strnewpoint))
 
         f.close()
-        logz = np.logaddexp(logz, np.sum(df_live['loglikes'].values + logx - np.log(self.nlivepoints)))
-        #z += np.sum(np.exp(df_live['loglikes'].values)) * x_current / self.nlivepoints
+
+        # logz = np.logaddexp(logz, np.logaddexp(df_live['loglikes'].values) + logx - np.log(self.nlivepoints))
+        # logz = np.logaddexp(logz, np.sum(df_live['loglikes'].values + logx - np.log(self.nlivepoints)))
+        z += np.sum(np.exp(df_live['loglikes'].values)) * np.exp(clogx) / self.nlivepoints
 
         df_dead = pd.DataFrame()
         df_dead['points'] = deadpoints
         df_dead['loglikes'] = deadloglikes
         samples = pd.concat([df_dead, df_live], ignore_index=True)
         # Only in order to visualize the total samples:
-        for row in samples.values:
-            print(row)
+        # for row in samples.values:
+        #     print(row)
 
-    def generate_point(self, lpoint, llike):
+    def rejection_sampling(self, lpoint, llike):
         """
             This functions recieves the point 
             with the lowest likelihood and generates one with higher 
@@ -151,17 +165,17 @@ class SkillingNS:
 
         return new_point, new_loglike
 
-    def print_func(self, df, z):
+    def print_func(self, df, logz):
         print("Accepted: {} || Rejected: {} ".format(
             self.accepted, self.rejected))
 
         highestpoint, highestlike = df.iloc[self.nlivepoints - 1]
         print("Parameter estimation : {}".format(highestpoint))
         print("logLikelihood : {}".format(highestlike))
-        print("log(Z) : {}".format(np.log(z)))
+        print("log(Z) : {}".format(logz))
 	
     def metropolis(self, ctheta, cloglike, iter):
-        logf = lambda x : self.logLike(x) + self.logPrior(x)
+        logf = lambda x : self.logLike(x) + self.logPrior(x)       
         samples = np.zeros((iter, 2))
         self.accepted = 0
         self.rejected = 0
