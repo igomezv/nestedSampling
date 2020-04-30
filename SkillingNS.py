@@ -31,14 +31,16 @@ class SkillingNS:
         self.rejected = 0
         # self.ncall = 0
 
-    def sampler(self, accuracy=0.01, outputname="nestedOutput"):
+    def sampler(self, accuracy=0.01, maxiter=10000, outputname=None):
         vectors = []
         # vector of loglikes
         loglikes = []
         # list for dead values
         deadpoints = []
         deadloglikes = []
-        if os.path.isfile(outputname + '.txt'):
+        if outputname is None:
+            pass
+        elif os.path.isfile(outputname + '.txt'):
             print("Output file exists! Please choose another"
                   " name or move the existing file.")
             sys.exit(1)
@@ -49,8 +51,9 @@ class SkillingNS:
             vectors.append(self.priorTransform(np.random.rand(self.nDims, ),
                                                self.bounds))
             loglikes.append(self.logLike(vectors[i]))
-            strvector = str(vectors[i]).lstrip('[').rstrip(']')
-            f.write("{} {} {}\n".format(0, loglikes[i], strvector))
+            if outputname:
+                strvector = str(vectors[i]).lstrip('[').rstrip(']')
+                f.write("{} {} {}\n".format(0, loglikes[i], strvector))
 
         # join loglikes and points
         df_live = pd.DataFrame()
@@ -58,25 +61,11 @@ class SkillingNS:
         df_live['loglikes'] = loglikes
         print(loglikes)
         print("data frame", df_live.head())
-        # 2) initialise S = 0, X_0 = 1
-        # evidence is z
-        # print("bounds", self.bounds)
-        # What is a good initial value for logz?
         logz = -np.inf
-        # logz = -1e50
-
-        # z = 0
-        # initial prior mass is x0 = 1
-        # x_prev = 1 -> logx =0
+        # initial prior mass is x0 = 1, z= 0
         plogx = 0
-        # x_prev = 1
-        # x_current = 1
-        # clogx = 0
-
         # h = 0
-        # j iterations
-        j = 10000
-        for i in range(j):
+        for i in range(maxiter):
             print("\nIteration {}".format(i + 1))
             # sort points by loglikes
             df_live.sort_values('loglikes', inplace=True)
@@ -102,28 +91,27 @@ class SkillingNS:
             df_live.iloc[0] = newpoint, newlike
             self.print_func(df_live, logz)
             plogx = clogx
-            strnewpoint = str(newpoint).lstrip('[').rstrip(']')
-            f.write("{} {} {}\n".format(logwi, newlike, strnewpoint))
+            if outputname:
+                strnewpoint = str(newpoint).lstrip('[').rstrip(']')
+                f.write("{} {} {}\n".format(logwi, newlike, strnewpoint))
             # What is a good value for f?
             stop = self.stoppingCriteria(df_live['loglikes'].values, clogx, logz, f=accuracy)
             if stop:
                 break
-        f.close()
+        if outputname:
+            f.close()
         lgsumexplglikes = logsumexp(df_live['loglikes'].values)
         logzsum = lgsumexplglikes + clogx - np.log(float(self.nlivepoints))
         logz = logsumexp([logz, logzsum])
         print("logz : {}".format(logz))
-        # logz = np.logaddexp(logz, np.logaddexp(df_live['loglikes'].values) + logx - np.log(self.nlivepoints))
-        # logz = np.logaddexp(logz, np.sum(df_live['loglikes'].values + logx - np.log(self.nlivepoints)))
-        # z += np.sum(np.exp(df_live['loglikes'].values)) * np.exp(clogx) / self.nlivepoints
 
         df_dead = pd.DataFrame()
         df_dead['points'] = deadpoints
         df_dead['loglikes'] = deadloglikes
         samples = pd.concat([df_dead, df_live], ignore_index=True)
-        # Only in order to visualize the total samples:
-        # for row in samples.values:
-        #     print(row)
+
+        return ({'nlive': self.nlivepoints, 'niter': j, 'samples': samples,
+                 'logwi': logwi, 'logz': logz})
 
     def rejection_sampling(self, lpoint, llike):
         """
@@ -176,7 +164,7 @@ class SkillingNS:
         self.rejected = 0
 
         for i in range(iter):
-            vstar = np.array(ctheta) + np.random.normal(size=len(ctheta))
+            vstar = ctheta + np.random.normal(size=len(ctheta))
             # logLikeStar = self.logLike(vstar)
             r = np.random.rand()
             if logf(vstar) - logf(ctheta) > np.log(r):
@@ -186,8 +174,8 @@ class SkillingNS:
             else:
                 self.rejected += 1
 
-        samples[i] = np.array(ctheta)
-        return np.array(ctheta), cloglike
+        samples[i] = ctheta
+        return ctheta, cloglike
 
     def logPrior(self, theta):
         flag = True

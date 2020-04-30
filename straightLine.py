@@ -1,7 +1,5 @@
 from SkillingNS import SkillingNS
 import numpy as np
-# import scipy as sc
-# from scipy.special import ndtri
 # #### We need a prior Transform, logLike and Theory##########
 
 def priorTransform(theta, bounds):
@@ -57,7 +55,7 @@ m = 3.5  # gradient of the line
 c = 1.2  # y-intercept of the line
 
 # set the "predictor variable"/abscissa
-M = 100
+M = 1000
 xmin = 0.
 xmax = 10.
 
@@ -77,4 +75,4 @@ nDims = 2
 sampler = SkillingNS(logLike, priorTransform, nDims, bounds,
                      nlivepoints=10)
 
-sampler.sampler(accuracy=0.01, outputname='line2.txt')
+sampler.sampler(accuracy=0.01, maxiter=1000, outputname=None)
