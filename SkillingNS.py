@@ -110,7 +110,7 @@ class SkillingNS:
         df_dead['loglikes'] = deadloglikes
         samples = pd.concat([df_dead, df_live], ignore_index=True)
 
-        return ({'nlive': self.nlivepoints, 'niter': j, 'samples': samples,
+        return ({'nlive': self.nlivepoints, 'niter': i, 'samples': samples,
                  'logwi': logwi, 'logz': logz})
 
     def rejection_sampling(self, lpoint, llike):
