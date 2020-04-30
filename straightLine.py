@@ -1,5 +1,6 @@
 from SkillingNS import SkillingNS
 import numpy as np
+# import scipy as sc
 # from scipy.special import ndtri
 # #### We need a prior Transform, logLike and Theory##########
 
@@ -20,23 +21,7 @@ def priorTransform(theta, bounds):
     # print("Prior transform : {}".format(np.array(priors)))
     return np.array(priors)
 
-
-# ==========================================================
-# def gaussianPriorTransform(theta, bounds):
-#     priors = []
-#     for c, bound in enumerate(bounds):
-#         mu = (bound[1]+ bound[0])/n
-#         sigma = (bound[1]-bound[0])/n
-#         priors.append(mu+sigma*(ndtri(theta[c])))
-#     return np.array(priors)
-#
-# =========================================================
-
-
-sigma = 0.5  # standard deviation of the noise
-LN2PI = np.log(2.*np.pi)
-LNSIGMA = np.log(sigma)
-
+sigma = 0.5
 
 def logLike(theta):
     """
@@ -61,14 +46,13 @@ def theory(x, m, c):
         m (float): the gradient of the line
         c (float): the y-intercept of the line
     """
-
     return m*x+c
 
 
 # ##########create some data#######################################
 # set the true values of the model parameters for creating the data
-#m = 4.2  # gradient of the line
-#c = 2.1  # y-intercept of the line
+# m = 4.2  # gradient of the line
+# c = 2.1  # y-intercept of the line
 m = 3.5  # gradient of the line
 c = 1.2  # y-intercept of the line
 
@@ -90,6 +74,7 @@ bounds = [[0, 10], [-2, 6]]
 # ##################Run Nested Sampling #########################
 nDims = 2
 
-sampler = SkillingNS(logLike, priorTransform, nDims, bounds, nlivepoints=100)
+sampler = SkillingNS(logLike, priorTransform, nDims, bounds,
+                     nlivepoints=10)
 
-sampler.sampler()
+sampler.sampler(accuracy=0.01, outputname='line2.txt')
