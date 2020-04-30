@@ -1,6 +1,7 @@
 from SkillingNS import SkillingNS
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 
 def plotterOutput(filename):
     data = np.loadtxt(filename+'.txt')
@@ -9,7 +10,9 @@ def plotterOutput(filename):
     ax1.set_title(filename)
     ax1.set_xlabel('x')
     ax1.set_ylabel('y')
-    ax1.scatter(data[:, 2], data[:, 3], c=np.random.rand(3))
+    color = np.array([random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1)])
+    ax1.scatter(data[:, 2], data[:, 3], c=np.atleast_2d(color))
+    ax1.axis('equal')
     plt.savefig(filename)
 
 def priorTransform(theta, bounds):
