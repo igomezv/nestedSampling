@@ -45,7 +45,7 @@ class SkillingNS:
                   " name or move the existing file.")
             sys.exit(1)
         else:
-            f = open(outputname + '.txt', 'a+')
+            f = open(outputname + '.txt', 'w+')
 
         for i in range(self.nlivepoints):
             vectors.append(self.priorTransform(np.random.rand(self.nDims, ),
