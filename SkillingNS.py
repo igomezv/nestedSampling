@@ -165,7 +165,6 @@ class SkillingNS:
 
         for i in range(iter):
             vstar = ctheta + np.random.normal(size=len(ctheta))
-            # logLikeStar = self.logLike(vstar)
             r = np.random.rand()
             if logf(vstar) - logf(ctheta) > np.log(r):
                 ctheta = vstar
