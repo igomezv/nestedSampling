@@ -113,59 +113,18 @@ class SkillingNS:
         return ({'nlive': self.nlivepoints, 'niter': i, 'samples': samples,
                  'logwi': logwi, 'logz': logz})
 
-    def rejection_sampling(self, lpoint, llike):
-        """
-            This functions recieves the point 
-            with the lowest likelihood and generates one with higher 
-            Likelihood.
 
-            Parameters:
-            ------------
-            lowpoint      :   point with lower likelihood.
-            lowlike       :   lower likelihood.
-            riormass   :   Prior mass
-            priorT      :   Prior transform
-        """
-
-        new_point = lpoint
-        new_loglike = llike
-        # while (ncalls < 1000 or accepted == 0):
-        while (new_loglike < llike or self.accepted == 0):
-            # print("new point  = llike", new_point)
-            proposal_point = np.random.rand(self.nDims, )
-            # new_point = self.priorTransform(proposal_point, bounds)
-            new_point = self.priorTransform(proposal_point, self.bounds)
-            new_loglike = self.logLike(new_point)
-            if new_loglike == llike:
-                epsilon = 1e-10 * np.random.rand()
-                # See equation 6 of Skilling's paper
-                # What is a good value for epsilon?
-                self.accepted += 1
-            elif new_loglike > llike:
-                self.accepted += 1
-            else:
-                self.rejected += 1
-
-        return new_point, new_loglike
-
-    def print_func(self, df, logz):
-        print("Accepted: {} || Rejected: {} ".format(
-            self.accepted, self.rejected))
-
-        highestpoint, highestlike = df.iloc[self.nlivepoints - 1]
-        print("Parameter estimation : {}".format(highestpoint))
-        print("logLikelihood : {}".format(highestlike))
-        print("log(Z) : {}".format(logz))
-
-    def metropolis(self, ctheta, cloglike, iter):
+    def metropolis(self, ctheta, cloglike):
         logf = lambda x: self.logLike(x) + self.logPrior(x)
-        samples = np.zeros((iter, 2))
+        # samples = np.zeros((iter, 2))
         self.accepted = 0
         self.rejected = 0
 
         for i in range(iter):
+            #propossal dist
             vstar = ctheta + np.random.normal(size=len(ctheta))
             r = np.random.rand()
+            #q:
             if logf(vstar) - logf(ctheta) > np.log(r):
                 ctheta = vstar
                 cloglike = self.logLike(ctheta)
@@ -173,7 +132,7 @@ class SkillingNS:
             else:
                 self.rejected += 1
 
-        samples[i] = ctheta
+        # samples[i] = ctheta
         return ctheta, cloglike
 
     def logPrior(self, theta):
@@ -198,3 +157,22 @@ class SkillingNS:
             print("maxloglike+logx: {}, logz+logf: {}".format(
                 maxloglike + logx, logz + np.log(f)))
             return False
+
+    def print_func(self, df, logz):
+        print("Accepted: {} || Rejected: {} ".format(
+            self.accepted, self.rejected))
+
+        highestpoint, highestlike = df.iloc[self.nlivepoints - 1]
+        print("Parameter estimation : {}".format(highestpoint))
+        print("logLikelihood : {}".format(highestlike))
+        print("log(Z) : {}".format(logz))
+
+class Parameter:
+    def __init__(self, inivalue, bounds, name, LatexName):
+        self.inivalue = inivalue
+        self.bounds = bounds
+        self.name = name
+        self.LatexName = LatexName
+
+    def paramFile(selfs, outputname):
+        pass
