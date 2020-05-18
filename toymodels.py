@@ -1,21 +1,19 @@
 from SkillingNS import SkillingNS
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 import random
 
-def plotterOutput(filename):
-    data = np.loadtxt(filename+'.txt')
-    fig = plt.figure()
-    ax1 = fig.add_subplot(111)
-    ax1.set_title(filename)
-    ax1.set_xlabel('x')
-    ax1.set_ylabel('y')
-    color = np.array([random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1)])
-    ax1.scatter(data[:, 2], data[:, 3], c=np.atleast_2d(color))
+nDims = 2
+bounds = [[-5., 5.], [-5., 5.]]
+nlive = 128
+
+def plotterOutput(df, filename='toymodel plot'):
+    ax1 = df.plot.scatter(x='x', y='y')
     ax1.axis('equal')
     plt.savefig(filename)
 
-def priorTransform(theta, bounds):
+def priorTransform(theta):
     """
     This is a common prior transform (flat priors).
 
@@ -42,24 +40,25 @@ def ringLoglike(x):
     r2 = x[0] ** 2 + x[1] ** 2
     return -(r2 - 4.0) ** 2 / (2 * 0.5 ** 2)
 
+names = ['x', 'y']
 
-nDims = 2
-bounds = [[-5., 5.], [-5., 5.]]
-nlive = 128
-
+# logLike, priorTransform, nDims, bounds,  nlivepoints=50, names=None, LatexNames=None
 sampler = SkillingNS(ringLoglike, priorTransform, nDims, bounds,
-                     nlivepoints=nlive)
-sampler.sampler(accuracy=0.01, maxiter=5000, outputname='ring')
-plotterOutput('ring')
+                     nlivepoints=nlive, names=names)
+result = sampler.sampler(accuracy=0.01, maxiter=5000, outputname='ring')
+postsamples = result['samples']
+plotterOutput(postsamples, 'ring')
 
 sampler = SkillingNS(gaussLoglike, priorTransform, nDims, bounds,
-                     nlivepoints=nlive)
-sampler.sampler(accuracy=0.001, maxiter=5000, outputname='gauss')
-plotterOutput('gauss')
-
+                     nlivepoints=nlive, names=names)
+result = sampler.sampler(accuracy=0.001, maxiter=5000, outputname='gauss')
+postsamples = result['samples']
+plotterOutput(postsamples, 'gauss')
 
 sampler = SkillingNS(himmelLoglike, priorTransform, nDims, bounds,
-                     nlivepoints=nlive)
-sampler.sampler(accuracy=0.01, maxiter=5000, outputname='himmel')
-plotterOutput('himmel')
+                     nlivepoints=nlive, names=names)
+result = sampler.sampler(accuracy=0.01, maxiter=5000, outputname='himmel')
+postsamples = result['samples']
+plotterOutput(postsamples, 'himmel')
+
 
