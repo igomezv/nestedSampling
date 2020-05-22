@@ -1,7 +1,8 @@
 # from SkillingNS import SkillingNS
-from SkillingNSv1 import SkillingNS
+# from SkillingNSv01 import SkillingNS
+from nestedSampling import SkillingNS
 import numpy as np
-import dynesty
+# import dynesty
 # #### We need a prior Transform, logLike and Theory##########
 
 names = ['m', 'c']
@@ -85,7 +86,7 @@ xmin = 0.
 xmax = 10.
 
 stepsize = (xmax-xmin)/M
-
+np.random.seed(0)
 x = np.arange(xmin, xmax, stepsize)
 # create the data - the model plus Gaussian noise
 
@@ -97,16 +98,15 @@ data = theory(x, m, c) + sigma*np.random.randn(M)
 nDims = 2
 
 #
-# sampler = SkillingNS(logLike, priorTransform, nDims, bounds=bounds,
-#                      nlivepoints=100, names=names)
-# #
-# sampler.sampler(accuracy=0.01, maxiter=1000, outputname="line")
-# # bounds = [[0, 10], [-2, 6]]
+sampler = SkillingNS(logLike, priorTransform, nDims, bounds=bounds,
+                     nlivepoints=50)
+#
+sampler.sampler(accuracy=0.1, maxiter=2000, outputname="line")
 
 
 #dynesty
-dysampler = dynesty.NestedSampler(logLike, priorTransform, nDims,
-                                  bound='single', sample='unif', nlive=100)
-dysampler.run_nested(dlogz=0.01)
-dyresults = dysampler.results
-saveDynestyChain(dyresults, "dynestySamplessingle")
+# dysampler = dynesty.NestedSampler(logLike, priorTransform, nDims,
+#                                   bound='single', sample='unif', nlive=100)
+# dysampler.run_nested(dlogz=0.01)
+# dyresults = dysampler.results
+# saveDynestyChain(dyresults, "dynestySamplessingle")
