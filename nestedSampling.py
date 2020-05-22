@@ -4,7 +4,8 @@ import pandas as pd
 import os.path
 from scipy.special import logsumexp
 import sys
-
+import random
+from math import floor
 
 class SkillingNS:
     def __init__(self, logLike, priorTransform, nDims, bounds, nlivepoints=50):
@@ -38,21 +39,11 @@ class SkillingNS:
         # list for dead values
         deadpoints = []
         deadloglikes = []
-        if outputname is None:
-            pass
-        elif os.path.isfile(outputname + '.txt'):
-            print("Output file exists! Please choose another"
-                  " name or move the existing file.")
-            sys.exit(1)
-        else:
-            f = open(outputname + '.txt', 'w+')
+        deadweights = []
 
         for i in range(self.nlivepoints):
             vectors.append(self.priorTransform(np.random.rand(self.nDims, )))
             loglikes.append(self.logLike(vectors[i]))
-            if outputname:
-                strvector = str(vectors[i]).lstrip('[').rstrip(']')
-                f.write("{} {} {}\n".format(0, loglikes[i], strvector))
 
         # join loglikes and points
         df_live = pd.DataFrame()
@@ -81,24 +72,25 @@ class SkillingNS:
             logwi = logsumexp([plogx, clogx], b=[1, -1])
             print("logw_i: {}".format(logwi))
             logLwi = lowloglike + logwi
+            deadweights.append(logLwi)
             # z increment
             logz = logsumexp([logz, logLwi])
             print("lowpoint: {}".format(lowpoint))
             # newpoint, newlike = self.generate_point(lowpoint, lowloglike)
-            newpoint, newlike = self.metropolis(lowpoint, lowloglike, 500)
+            newpoint, newlike = self.metropolis(lowpoint, lowloglike, 50)
             print("new point: {}".format(newpoint))
             df_live.iloc[0] = newpoint, newlike
             self.print_func(df_live, logz)
             plogx = clogx
-            if outputname:
-                strnewpoint = str(newpoint).lstrip('[').rstrip(']')
-                f.write("{} {} {}\n".format(logwi, newlike, strnewpoint))
+            # if outputname:
+            #     strnewpoint = str(newpoint).lstrip('[').rstrip(']')
+            #     f.write("{} {} {}\n".format(logLwi, newlike, strnewpoint))
             # What is a good value for f?
             stop = self.stoppingCriteria(df_live['loglikes'].values, clogx, logz, f=accuracy)
             if stop:
                 break
-        if outputname:
-            f.close()
+        # if outputname:
+        #     f.close()
         lgsumexplglikes = logsumexp(df_live['loglikes'].values)
         logzsum = lgsumexplglikes + clogx - np.log(float(self.nlivepoints))
         logz = logsumexp([logz, logzsum])
@@ -107,6 +99,9 @@ class SkillingNS:
         df_dead = pd.DataFrame()
         df_dead['points'] = deadpoints
         df_dead['loglikes'] = deadloglikes
+        # deadweights = np.exp(np.array(deadweights) - logsumexp(np.array(deadweights)))
+        df_dead['weights'] = deadweights
+        self.saveDFtotxt(df_dead, outputname, ext="1")
         samples = pd.concat([df_dead, df_live], ignore_index=True)
 
         return ({'nlive': self.nlivepoints, 'niter': i, 'samples': samples,
@@ -114,6 +109,8 @@ class SkillingNS:
 
 
     def metropolis(self, ctheta, cloglike, iter):
+        step = 0.01
+
         logf = lambda x: self.logLike(x) + self.logPrior(x)
         # samples = np.zeros((iter, 2))
         self.accepted = 0
@@ -121,17 +118,19 @@ class SkillingNS:
 
         for i in range(iter):
             #propossal dist
-            vstar = ctheta + np.random.normal(size=len(ctheta))
+            vstar = ctheta + step * np.random.normal(size=len(ctheta))
             r = np.random.rand()
-            #q:
+            # q:
             if logf(vstar) - logf(ctheta) > np.log(r):
                 ctheta = vstar
                 cloglike = self.logLike(ctheta)
                 self.accepted += 1
             else:
                 self.rejected += 1
+             # Refine step-size
+            if( self.accepted > self.rejected ):   step *= np.exp(1.0 / self.accepted)
+            if( self.accepted < self.rejected ):   step /= np.exp(1.0 / self.rejected)
 
-        # samples[i] = ctheta
         return ctheta, cloglike
 
     def logPrior(self, theta):
@@ -165,6 +164,23 @@ class SkillingNS:
         print("Parameter estimation : {}".format(highestpoint))
         print("logLikelihood : {}".format(highestlike))
         print("log(Z) : {}".format(logz))
+
+    def saveDFtotxt(self, df, outputname, ext='live-birth'):
+        f = open("{}_{}.txt".format(outputname, ext), 'w+')
+        if ext == '1':
+            normws = logsumexp(df['weights'])
+           # print("logaexp weights {}".format(normws))
+        for _, row in df.iterrows():
+            strpoint = "{}".format(row['points']).lstrip('[').rstrip(']').strip(',')
+            strpoint = strpoint.replace(',', '')
+            strpoint = strpoint.replace('  ', ' ')
+            if ext == '1':
+                strrow = "{} {} {}".format(np.exp(row['weights'] - normws), row['loglikes'], strpoint)
+            else:
+                strrow = "{} {} {}".format(strpoint, row['loglikes'], row['birth_contours'])
+            strrow = strrow.replace('  ', ' ')
+            f.write("{}\n".format(strrow))
+        f.close()
 
 class Parameter:
     def __init__(self, inivalue, bounds, name, LatexName):
