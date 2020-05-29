@@ -3,12 +3,14 @@ import numpy as np
 
 class Object:
     def __init__(self):
-        self.u=None     # Uniform-prior controlling parameter for x
-        self.v=None     # Uniform-prior controlling parameter for y
-        self.x=None     # Geographical easterly position of lighthouse
-        self.y=None     # Geographical northerly position of lighthouse
-        self.logL=None  # logLikelihood = ln Prob(data | position)
-        self.logWt=None # log(Weight), adding to SUM(Wt) = Evidence Z
+        # self.points = None
+        # self.phys_points = None
+        self.u = None 
+        self.v = None
+        self.x = None
+        self.y = None
+        self.logL = None
+        self.logWt = None
 
 class nestedSampling:
     def __init__(self, logLike, priorTransform, nlive, ndims, maxiter):
@@ -29,7 +31,7 @@ class nestedSampling:
             livesamples.append(self.sample_from_prior())
 
         # Outermost interval of prior mass
-        logwidth = log(1.0 - exp(-1.0 / self.nlive))
+        logwidth = np.log(1.0 - np.exp(-1.0 / self.nlive))
 
         # NESTED SAMPLING LOOP ___________________________________________
         for nest in range(self.maxiter):
@@ -45,8 +47,8 @@ class nestedSampling:
             # Update Evidence Z and Information H
             logZnew = logsumexp([logZ, livesamples[worst].logWt])
 
-            H = exp(livesamples[worst].logWt - logZnew) * livesamples[worst].logL + \
-                exp(logZ - logZnew) * (H + logZ) - logZnew
+            H = np.exp(livesamples[worst].logWt - logZnew) * livesamples[worst].logL + \
+                np.exp(logZ - logZnew) * (H + logZ) - logZnew
             logZ = logZnew
 
             # Posterior samples (optional)
@@ -71,8 +73,8 @@ class nestedSampling:
             logwidth -= 1.0 / self.nlive
 
         # Exit with evidence Z, information H, and optional posterior samples
-        sdev_H = H/log(2.)
-        sdev_logZ = sqrt(H/self.nlive)
+        sdev_H = H/np.log(2.)
+        sdev_logZ = np.sqrt(H/self.nlive)
         results = {"samples":samples, "num_iterations":(nest+1), "logZ":logZ,
                 "logZ_sdev":sdev_logZ, "info_nats":H, "info_sdev":sdev_H}
 
@@ -82,15 +84,20 @@ class nestedSampling:
 
     def sample_from_prior(self):
         Obj = Object()
-        Obj.u = np.random.random()                # uniform in (0,1)
-        Obj.v = np.random.random()                # uniform in (0,1)
+        Obj.u = np.random.random()  # uniform in (0,1)
+        Obj.v = np.random.random()  # uniform in (0,1)
         Obj.x, Obj.y = self.priorTransform([Obj.u, Obj.v])
+        Obj.logL = self.logLike([Obj.x, Obj.y])
+        #Obj.points = np.random.rand(self.ndims)
+        # Obj.u = np.random.random()                # uniform in (0,1)
+        # Obj.v = np.random.random()                # uniform in (0,1)
+        #Obj.phys_points = self.priorTransform(Obj.points)
         # Obj.x = Obj.u * (10-0) + 0
         # Obj.y = Obj.v * (6+2) - 2
         #theta[c]*(bound[1]-bound[0])+bound[0])
         # Obj.x, Obj.y = priorTransform([Obj.u, Obj.v])             # map to x
         # Obj.y = 2.0 * Obj.v                    # map to y
-        Obj.logL = self.logLike([Obj.x, Obj.y])
+        #Obj.logL = self.logLike(Obj.phys_points)
         return Obj
 
     def explore(   # Evolve object within likelihood constraint
@@ -109,8 +116,8 @@ class nestedSampling:
             # Trial object
             Try.u = ret.u + step * (2.*np.random.random() - 1.)  # |move| < step
             Try.v = ret.v + step * (2.*np.random.random() - 1.)  # |move| < step
-            Try.u -= floor(Try.u)      # wraparound to stay within (0,1)
-            Try.v -= floor(Try.v)      # wraparound to stay within (0,1)
+            Try.u -= np.floor(Try.u)      # wraparound to stay within (0,1)
+            Try.v -= np.floor(Try.v)      # wraparound to stay within (0,1)
             Try.x, Try.y = self.priorTransform([Try.u, Try.v])
             #4.0 * Try.u - 2.0  # map to x
             #Try.y = 2.0 * Try.v        # map to y
@@ -124,8 +131,8 @@ class nestedSampling:
                 reject+=1
 
             # Refine step-size to let acceptance ratio converge around 50%
-            if( accept > reject ):   step *= exp(1.0 / accept)
-            if( accept < reject ):   step /= exp(1.0 / reject)
+            if( accept > reject ):   step *= np.exp(1.0 / accept)
+            if( accept < reject ):   step /= np.exp(1.0 / reject)
         return ret
 
     def process_results(self, results):
@@ -135,7 +142,7 @@ class nestedSampling:
         samples = results['samples']
         logZ = results['logZ']
         for i in range(ni):
-            w = exp(samples[i].logWt - logZ) # Proportional weight
+            w = np.exp(samples[i].logWt - logZ) # Proportional weight
             x  += w * samples[i].x
             xx += w * samples[i].x * samples[i].x
             y  += w * samples[i].y
@@ -145,7 +152,7 @@ class nestedSampling:
         H_sdev = results['info_sdev']
         print("# iterates: %i"%ni)
         print("Evidence: ln(Z) = %g +- %g"%(logZ,logZ_sdev))
-        print("Information: H  = %g nats = %g bits"%(H,H/log(2.0)))
+        print("Information: H  = %g nats = %g bits"%(H,H/np.log(2.0)))
         #print("mean(x) = %9.4f, stddev(x) = %9.4f"%(x, sqrt(xx-x*x)))
         print("mean(x) = {}, stddev(x) = {}".format(x, np.std(x)))
         print("mean(x) = {}, stddev(x) = {}".format(y, np.std(y)))
