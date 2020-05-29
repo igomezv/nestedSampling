@@ -1,6 +1,6 @@
 from scipy.special import logsumexp
 import numpy as np
-# This code is based on the John Skilling paper:
+# This code is based on the Appendix of the John Skilling's paper:
 # https://projecteuclid.org/download/pdf_1/euclid.ba/1340370944
 # and in the mininest implementation:
 # https://www.inference.org.uk/bayesys/
@@ -12,6 +12,7 @@ class Object:
         self.phys_points = None
         self.logL = None
         self.logWt = None
+        self.logLstar = None
 
 class nestedSampling:
     def __init__(self, logLike, priorTransform, nlive, ndims, maxiter):
@@ -67,6 +68,7 @@ class nestedSampling:
             new_sample = self.explore(livesamples[worst], logLstar)
             assert(new_sample != None) # Make sure explore didn't update in-place
             livesamples[worst] = new_sample
+            livesamples[worst].logLstar = logLstar
             #pbar
             print("{}/{} | logz: {} | logw: {} | logLstar: {}".format(nest, self.maxiter,
                                                                       logz, logw, logLstar), end='\r')
@@ -75,7 +77,8 @@ class nestedSampling:
                 break
             # Shrink interval # very important!
             logw -= 1.0 / self.nlive
-
+        self.postprocess(livesamples, ext="_live-birth")
+        self.postprocess(samples, ext="_dead-birth")
         # Optional final correction. Should be small
         logw = -nest/self.nlive - np.log(self.nlive)
         for r in range(self.nlive):
@@ -97,7 +100,9 @@ class nestedSampling:
 
         print("{} iterations | logz:{} +/- {} | h:{} +/- {} | logw: {}".format(nest+1, logz,
                                                                     sdev_logz, h, sdev_h, logw))
+
         self.postprocess(samples)
+
         return results
 
     def sample_from_prior(self):
@@ -105,6 +110,7 @@ class nestedSampling:
         Obj.points = np.random.rand(self.ndims)
         Obj.phys_points = self.priorTransform(Obj.points)
         Obj.logL = self.logLike(Obj.phys_points)
+        Obj.logLstar = Obj.logL
         return Obj
 
     def explore(self, current_sample, logLstar):
@@ -135,24 +141,32 @@ class nestedSampling:
 
         return propossal
 
-    def postprocess(self, samples):
+    def postprocess(self, samples, ext="", outputname="output"):
         posterior = []
         weights = []
         loglikes = []
+        logLstars = []
         for sample in samples:
             posterior.append(sample.phys_points)
             weights.append(sample.logWt)
             loglikes.append(sample.logL)
-        normws = logsumexp(weights)
-        f = open("output.txt", "+w")
+            logLstars.append(sample.logLstar)
+
+        f = open("{}{}.txt".format(outputname, ext), "+w")
         for i, point in enumerate(posterior):
             undesirables = '[ ]'
             strpoint = "{}".format(point).strip(undesirables)
             strpoint = "{}".format(strpoint).replace(',','')
-            weightnorm = np.exp(weights[i] - normws)
-            strow = "{} {} {}\n".format(weightnorm, loglikes[i], strpoint)
+
+            if ext == "":
+                normws = logsumexp(weights)
+                weightnorm = np.exp(weights[i] - normws)
+                strow = "{} {} {}\n".format(weightnorm, loglikes[i], strpoint)
+            else:
+                strow = "{} {} {}\n".format(strpoint, loglikes[i], logLstars[i])
             f.write(strow)
         f.close()
+
         posterior = np.array(posterior)
         m, n = np.shape(posterior)
         mean = np.mean(posterior, axis=0)
