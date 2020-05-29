@@ -20,7 +20,7 @@ class nestedSampling:
         livesamples = []
         samples = []
         h    = 0.0
-        logz = -1e300
+        logz = -1e300 # not -np.inf
 
         for _ in range(self.nlive):
             livesamples.append(self.sample_from_prior())
@@ -69,11 +69,11 @@ class nestedSampling:
         # Exit with evidence Z, information h, and optional posterior samples
         sdev_h = h/np.log(2.)
         sdev_logz = np.sqrt(h/self.nlive)
-        results = {"samples":samples, "num_iterations":(nest+1), "logz":logz,
-                "logz_sdev":sdev_logz, "info_nats":h, "info_sdev":sdev_h}
+        results = {"samples": samples, "n iterations": (nest+1), "logz": logz,
+                   "logz_sdev": sdev_logz, "info": h, "info_sdev": sdev_h}
 
-        print("logz:{} h:{}".format(logz, h))
-
+        print("logz:{} +/- {} | h:{} +/- {}".format(logz, sdev_logz, h, sdev_h))
+        self.postprocess(samples)
         return results
 
     def sample_from_prior(self):
@@ -83,32 +83,57 @@ class nestedSampling:
         Obj.logL = self.logLike(Obj.phys_points)
         return Obj
 
-    def explore(   # Evolve object within likelihood constraint
-        self, Obj,       # Object being evolved
-        logLstar): # Likelihood constraint L > Lstar
-
-        ret = Object()
-        ret.__dict__ = Obj.__dict__.copy()
-        step = 0.1   # Initial guess suitable step-size in (0,1)
-        accept = 0   # # MCMC acceptances
-        reject = 0   # # MCMC rejections
-        Try = Object()          # Trial object
-
-        for m in range(20):  # pre-judged number of steps
-            Try.points = ret.points + step * (2.*np.random.random(self.ndims) - 1.)  # |move| < step)
-            Try.points -= np.floor(Try.points)      # wraparound to stay within (0,1)
-            #Try.v -= np.floor(Try.v)      # wraparound to stay within (0,1)
-            Try.phys_points = self.priorTransform(Try.points)
-            Try.logL = self.logLike(Try.phys_points)  # trial likelihood value
-
-            # Accept if and only if within hard likelihood constraint
-            if Try.logL > logLstar:
-                ret.__dict__ = Try.__dict__.copy()
-                accept+=1
+    def explore(self, current_sample, logLstar):
+        # need of an auxiliar object
+        aux = Object()
+        aux.__dict__ = current_sample.__dict__.copy()
+        step = 0.1
+        accept = 0
+        reject = 0
+        propossal = Object()
+        for _ in range(2):
+            propossal.points = current_sample.points + step * (2.*np.random.random(self.ndims) - 1.)
+            propossal.points -= np.floor(propossal.points)
+            propossal.phys_points = self.priorTransform(propossal.points)
+            propossal.logL = self.logLike(propossal.phys_points)
+            # Hard likelihood constraint
+            if propossal.logL > logLstar:
+                aux.__dict__ = propossal.__dict__.copy()
+                # print(propossal == aux)
+                accept += 1
             else:
-                reject+=1
+                reject += 1
+            # Refine step-size
+            if accept > reject:
+                step *= np.exp(1.0 / accept)
+            elif accept < reject:
+                step /= np.exp(1.0 / reject)
 
-            # Refine step-size to let acceptance ratio converge around 50%
-            if( accept > reject ):   step *= np.exp(1.0 / accept)
-            if( accept < reject ):   step /= np.exp(1.0 / reject)
-        return ret
+        return propossal
+
+    def postprocess(self, samples):
+        posterior = []
+        weights = []
+        loglikes = []
+        for sample in samples:
+            posterior.append(sample.phys_points)
+            weights.append(sample.logWt)
+            loglikes.append(sample.logL)
+        normws = logsumexp(weights)
+        f = open("output.txt", "+w")
+        for i, point in enumerate(posterior):
+            undesirables = '[ ]'
+            strpoint = "{}".format(point).strip(undesirables)
+            strpoint = "{}".format(strpoint).replace(',','')
+            weightnorm = np.exp(weights[i] - normws)
+            strow = "{} {} {}\n".format(weightnorm, loglikes[i], strpoint)
+            f.write(strow)
+        f.close()
+        posterior = np.array(posterior)
+        m, n = np.shape(posterior)
+        mean = np.mean(posterior, axis=0)
+        std = np.std(posterior, axis=0)
+        for i in range(n):
+            print("{} parameter: {} +/- {}".format(i+1, mean[i], std[i]))
+
+
