@@ -63,7 +63,7 @@ class nestedSampling:
             assert(new_sample != None) # Make sure explore didn't update in-place
             livesamples[worst] = new_sample
 
-            # Shrink interval
+            # Shrink interval # very important!
             logw -= 1.0 / self.nlive
 
         # Exit with evidence Z, information h, and optional posterior samples
@@ -84,14 +84,14 @@ class nestedSampling:
         return Obj
 
     def explore(self, current_sample, logLstar):
-        # need of an auxiliar object
+        # need of an auxiliary object!
         aux = Object()
         aux.__dict__ = current_sample.__dict__.copy()
         step = 0.1
         accept = 0
         reject = 0
         propossal = Object()
-        for _ in range(2):
+        for _ in range(50):
             propossal.points = current_sample.points + step * (2.*np.random.random(self.ndims) - 1.)
             propossal.points -= np.floor(propossal.points)
             propossal.phys_points = self.priorTransform(propossal.points)
