@@ -30,7 +30,6 @@ class nestedSampling:
 
         # begin nested sampling loop
         for nest in range(self.maxiter):
-            # print("")
             # Worst object
             worst = 0
             for i in range(1, self.nlive):
@@ -63,6 +62,9 @@ class nestedSampling:
             new_sample = self.explore(livesamples[worst], logLstar)
             assert(new_sample != None) # Make sure explore didn't update in-place
             livesamples[worst] = new_sample
+            #pbar
+            print("{}/{} | logz: {} | logw: {} | logLstar: {}".format(nest, self.maxiter,
+                                                                      logz, logw, logLstar), end='\r')
             stop = self.stoppingCriteria(livesamples, logw, logz, f)
             if stop:
                 break
@@ -146,7 +148,7 @@ class nestedSampling:
             loglikes.append(sample.logL)
         maxloglike = np.max(loglikes)
         if maxloglike + logw < logz + np.log(f):
-            print("\nStopping Criteria reached!")
+            print("\nStopping criteria reached!")
             return True
         else:
             return False
