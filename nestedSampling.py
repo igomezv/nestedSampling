@@ -1,5 +1,10 @@
 from scipy.special import logsumexp
 import numpy as np
+# This code is based on the John Skilling paper:
+# https://projecteuclid.org/download/pdf_1/euclid.ba/1340370944
+# and in the mininest implementation:
+# https://www.inference.org.uk/bayesys/
+
 
 class Object:
     def __init__(self):
@@ -16,7 +21,7 @@ class nestedSampling:
         self.ndims = ndims
         self.maxiter = maxiter
 
-    def sampling(self, f=0.01):
+    def sampling(self, accuracy=0.01):
         livesamples = []
         samples = []
         h    = 0.0
@@ -65,11 +70,24 @@ class nestedSampling:
             #pbar
             print("{}/{} | logz: {} | logw: {} | logLstar: {}".format(nest, self.maxiter,
                                                                       logz, logw, logLstar), end='\r')
-            stop = self.stoppingCriteria(livesamples, logw, logz, f)
+            stop = self.stoppingCriteria(livesamples, logw, logz, accuracy)
             if stop:
                 break
             # Shrink interval # very important!
             logw -= 1.0 / self.nlive
+
+        # Optional final correction. Should be small
+        logw = -nest/self.nlive - np.log(self.nlive)
+        for r in range(self.nlive):
+            livesamples[r].logWt = logw + livesamples[r].logL # width*Like
+            #update z and h
+            logznew = logsumexp([logz, livesamples[r].logWt])
+            h = np.exp(livesamples[r].logWt - logznew) * livesamples[r].logL + \
+                np.exp(logz - logznew) * (h + logz) - logznew
+            logz = logznew
+            # Add posterior samples
+            samples.append(livesamples[r])
+        # End of optional correction
 
         # Exit with evidence Z, information h, and optional posterior samples
         sdev_h = h/np.log(2.)
@@ -77,8 +95,8 @@ class nestedSampling:
         results = {"samples": samples, "n iterations": (nest+1), "logz": logz,
                    "logz_sdev": sdev_logz, "info": h, "info_sdev": sdev_h}
 
-        print("{} iterations | logz:{} +/- {} | h:{} +/- {}".format(nest+1, logz,
-                                                                    sdev_logz, h, sdev_h))
+        print("{} iterations | logz:{} +/- {} | h:{} +/- {} | logw: {}".format(nest+1, logz,
+                                                                    sdev_logz, h, sdev_h, logw))
         self.postprocess(samples)
         return results
 
@@ -142,15 +160,16 @@ class nestedSampling:
         for i in range(n):
             print("{} parameter: {} +/- {}".format(i+1, mean[i], std[i]))
 
-    def stoppingCriteria(self, samples, logw, logz, f):
-        loglikes = []
-        for sample in samples:
-            loglikes.append(sample.logL)
-        maxloglike = np.max(loglikes)
-        if maxloglike + logw < logz + np.log(f):
-            print("\nStopping criteria reached!")
-            return True
+    def stoppingCriteria(self, samples, logw, logz, accuracy):
+        if accuracy:
+            loglikes = []
+            for sample in samples:
+                loglikes.append(sample.logL)
+            maxloglike = np.max(loglikes)
+            if maxloglike + logw < logz + np.log(accuracy):
+                print("\nStopping criteria reached!")
+                return True
+            else:
+                return False
         else:
             return False
-
-
