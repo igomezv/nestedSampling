@@ -85,20 +85,19 @@ def saveDynestyChain(result, outputname):
         nrow = " ".join(row.split())
         f.write(nrow + '\n')
 
-nlivepoints = 100
 
-s = nestedSampling(logLike, priorTransform, nlive=200, ndims=2, maxiter=30000)
-s.sampling(f=0.001)
+s = nestedSampling(logLike, priorTransform, nlive=200, ndims=2, maxiter=10000)
+s.sampling(accuracy=0.01)
 
 
 dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
-                                  bound='single', sample='unif', nlive=100)
+                                  bound='single', sample='unif', nlive=200)
 dysampler.run_nested(dlogz=0.01)
 dyresults = dysampler.results
 saveDynestyChain(dyresults, "dynestySamples")
 
 dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
-                                  bound='multi', sample='unif', nlive=100)
+                                  bound='multi', sample='unif', nlive=200)
 dysampler.run_nested(dlogz=0.01)
 dyresults = dysampler.results
 saveDynestyChain(dyresults, "dynestySamples2")
