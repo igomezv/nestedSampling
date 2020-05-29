@@ -20,13 +20,13 @@ class nestedSampling:
         livesamples = []
         samples = []
         h    = 0.0
-        logz =-1e300
+        logz = -1e300
 
         for _ in range(self.nlive):
             livesamples.append(self.sample_from_prior())
 
-        # Outermost interval of prior mass
-        logwidth = np.log(1.0 - np.exp(-1.0 / self.nlive))
+        # outermost interval of prior mass
+        logw = np.log(1.0 - np.exp(-1.0 / self.nlive))
 
         # begin nested sampling loop
         for nest in range(self.maxiter):
@@ -36,7 +36,7 @@ class nestedSampling:
                 if livesamples[i].logL < livesamples[worst].logL:
                     worst = i
 
-            livesamples[worst].logWt = logwidth + livesamples[worst].logL
+            livesamples[worst].logWt = logw + livesamples[worst].logL
 
             # Update Evidence Z and Information h
             logznew = logsumexp([logz, livesamples[worst].logWt])
@@ -49,9 +49,9 @@ class nestedSampling:
             samples.append(livesamples[worst])
 
             # Kill worst object in favour of copy of different survivor
-            if self.nlive>1: # don't kill if n is only 1
+            if self.nlive > 1:
                 while True:
-                    copy = int(self.nlive * np.random.random()) % self.nlive  # force 0 <= copy < n
+                    copy = np.random.randint(0, self.nlive)
                     if copy != worst:
                         break
 
@@ -64,7 +64,7 @@ class nestedSampling:
             livesamples[worst] = new_sample
 
             # Shrink interval
-            logwidth -= 1.0 / self.nlive
+            logw -= 1.0 / self.nlive
 
         # Exit with evidence Z, information h, and optional posterior samples
         sdev_h = h/np.log(2.)
