@@ -16,7 +16,7 @@ class nestedSampling:
         self.ndims = ndims
         self.maxiter = maxiter
 
-    def sampling(self):
+    def sampling(self, f=0.01):
         livesamples = []
         samples = []
         h    = 0.0
@@ -30,9 +30,10 @@ class nestedSampling:
 
         # begin nested sampling loop
         for nest in range(self.maxiter):
+            # print("")
             # Worst object
             worst = 0
-            for i in range(1,self.nlive):
+            for i in range(1, self.nlive):
                 if livesamples[i].logL < livesamples[worst].logL:
                     worst = i
 
@@ -62,7 +63,9 @@ class nestedSampling:
             new_sample = self.explore(livesamples[worst], logLstar)
             assert(new_sample != None) # Make sure explore didn't update in-place
             livesamples[worst] = new_sample
-
+            stop = self.stoppingCriteria(livesamples, logw, logz, f)
+            if stop:
+                break
             # Shrink interval # very important!
             logw -= 1.0 / self.nlive
 
@@ -72,7 +75,8 @@ class nestedSampling:
         results = {"samples": samples, "n iterations": (nest+1), "logz": logz,
                    "logz_sdev": sdev_logz, "info": h, "info_sdev": sdev_h}
 
-        print("logz:{} +/- {} | h:{} +/- {}".format(logz, sdev_logz, h, sdev_h))
+        print("{} iterations | logz:{} +/- {} | h:{} +/- {}".format(nest+1, logz,
+                                                                    sdev_logz, h, sdev_h))
         self.postprocess(samples)
         return results
 
@@ -135,5 +139,16 @@ class nestedSampling:
         std = np.std(posterior, axis=0)
         for i in range(n):
             print("{} parameter: {} +/- {}".format(i+1, mean[i], std[i]))
+
+    def stoppingCriteria(self, samples, logw, logz, f):
+        loglikes = []
+        for sample in samples:
+            loglikes.append(sample.logL)
+        maxloglike = np.max(loglikes)
+        if maxloglike + logw < logz + np.log(f):
+            print("\nStopping Criteria reached!")
+            return True
+        else:
+            return False
 
 

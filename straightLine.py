@@ -88,9 +88,8 @@ def saveDynestyChain(result, outputname):
 nlivepoints = 100
 
 s = nestedSampling(logLike, priorTransform, nlive=200, ndims=2, maxiter=30000)
-s.sampling()
-# results = nested_sampling(n, max_iter, sample_from_prior, explore, priorTransform)
-# process_results(results)
+s.sampling(f=0.001)
+
 
 dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
                                   bound='single', sample='unif', nlive=100)
