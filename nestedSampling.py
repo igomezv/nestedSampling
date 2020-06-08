@@ -15,12 +15,13 @@ class Object:
         self.logLstar = None
 
 class nestedSampling:
-    def __init__(self, logLike, priorTransform, nlive, ndims, maxiter):
+    def __init__(self, logLike, priorTransform, nlive, ndims, maxiter, outputname="output"):
         self.logLike = logLike
         self.priorTransform = priorTransform
         self.nlive = nlive
         self.ndims = ndims
         self.maxiter = maxiter
+        self.outputname = outputname
 
     def sampling(self, accuracy=0.01):
         livesamples = []
@@ -69,12 +70,15 @@ class nestedSampling:
             assert(new_sample != None) # Make sure explore didn't update in-place
             livesamples[worst] = new_sample
             livesamples[worst].logLstar = logLstar
-            #pbar
-            print("{}/{} | logz: {} | logw: {} | logLstar: {}".format(nest, self.maxiter,
-                                                                      logz, logw, logLstar), end='\r')
-            stop = self.stoppingCriteria(livesamples, logw, logz, accuracy)
-            if stop:
+            #Stopping criteria
+            dlogz = self.deltalogz(livesamples, logw, logz)
+            if dlogz < accuracy:
+                print("\nStopping criteria reached!")
                 break
+            # pbar
+            print("{}/{} | logz: {} | dlogz: {} | logw: {} | logLstar: {}".format(nest, self.maxiter,
+                                                                      logz, dlogz, logw, logLstar), end='\r')
+
             # Shrink interval # very important!
             logw -= 1.0 / self.nlive
         self.postprocess(livesamples, ext="_live-birth")
@@ -141,7 +145,7 @@ class nestedSampling:
 
         return propossal
 
-    def postprocess(self, samples, ext="", outputname="output"):
+    def postprocess(self, samples, ext=""):
         posterior = []
         weights = []
         loglikes = []
@@ -152,7 +156,7 @@ class nestedSampling:
             loglikes.append(sample.logL)
             logLstars.append(sample.logLstar)
 
-        f = open("{}{}.txt".format(outputname, ext), "+w")
+        f = open("{}{}.txt".format(self.outputname, ext), "+w")
         for i, point in enumerate(posterior):
             undesirables = '[ ]'
             strpoint = "{}".format(point).strip(undesirables)
@@ -174,16 +178,13 @@ class nestedSampling:
         for i in range(n):
             print("{} parameter: {} +/- {}".format(i+1, mean[i], std[i]))
 
-    def stoppingCriteria(self, samples, logw, logz, accuracy):
-        if accuracy:
-            loglikes = []
-            for sample in samples:
-                loglikes.append(sample.logL)
-            maxloglike = np.max(loglikes)
-            if maxloglike + logw < logz + np.log(accuracy):
-                print("\nStopping criteria reached!")
-                return True
-            else:
-                return False
-        else:
-            return False
+    def deltalogz(self, samples, logw, logz):
+        loglikes = []
+        for sample in samples:
+            loglikes.append(sample.logL)
+        maxloglike = np.max(loglikes)
+        # logz_remain in livepoints
+        logz_remain = maxloglike + logw
+        #deltalogz = logz_remain - logz
+        deltalogz = np.logaddexp(logz, logz_remain) - logz
+        return deltalogz
