@@ -1,4 +1,5 @@
 from nestedSampling import nestedSampling
+from nested import nested
 import numpy as np
 import dynesty
 from math import *
@@ -19,7 +20,7 @@ def theory(x, m, c):
 
 names = ['m', 'c']
 LaTeXnames = ['m_1', 'c_1']
-bounds = [[0, 5], [-2, 6]]
+bounds = [[0, 5], [1, 6]]
 
 m = 3.5  # gradient of the line
 c = 1.2  # y-intercept of the line
@@ -85,21 +86,25 @@ def saveDynestyChain(result, outputname):
         nrow = " ".join(row.split())
         f.write(nrow + '\n')
 
-
-s = nestedSampling(logLike, priorTransform, nlive=200, ndims=2, maxiter=20000, outputname="line")
-s.sampling(accuracy=0.01)
-
-
+s = nested(logLike, priorTransform, nlive=50, ndims=2)
+s.sampling()
+#
+# s = nestedSampling(logLike, priorTransform, nlive=50, ndims=2, maxiter=20000, outputname="line_without")
+# s.sampling(accuracy=0.01)
+#
+#
 dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
-                                  bound='single', sample='unif', nlive=200)
+                                  bound='single', sample='unif', nlive=50)
 dysampler.run_nested(dlogz=0.01)
-dyresults = dysampler.results
-saveDynestyChain(dyresults, "dynestyLine")
-
+# dyresults = dysampler.results
+# saveDynestyChain(dyresults, "dynestyLine_single")
+#
 # dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
-#                                   bound='multi', sample='unif', nlive=200)
+#                                   bound='multi', sample='unif', nlive=50)
 # dysampler.run_nested(dlogz=0.01)
 # dyresults = dysampler.results
-# saveDynestyChain(dyresults, "dynestyLine2")
+# saveDynestyChain(dyresults, "dynestyLine_multi")
+#
+#
 
 
