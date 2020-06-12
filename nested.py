@@ -2,7 +2,7 @@ import numpy as np
 from scipy.special import logsumexp
 
 class nested:
-    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=50000):
+    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=5000):
         self.loglike = loglike
         self.priorTransform = priorTransform
         self.ndims = ndims
@@ -13,9 +13,9 @@ class nested:
         #u, x, logx, logw, logz
         upoints = []
         vpoints = []
-        logx = []
         logL = []
         logLstar = []
+        logx = []
         logw = []
         logLw = []
         logz = []
@@ -27,58 +27,59 @@ class nested:
             logL.append(self.loglike(vpoints[i]))
             logLstar.append(logL[i])
             logx.append(0)
-            logLw.append(0)
+            logLw.append(1)
             logw.append(1)
             logz.append(1e-300)
-
         # Begin the nested sampling loop
         clogz = -1e300
-        # x_0 = 1 -> logx_0 = 0 x = 1 - exp(-1/N)
-        clogx = prevlogx = np.log(1. - np.exp(-1./self.nlive))
-        print("clogx", clogx, type(clogx))
+        px = 1.
 
         for i in range(self.maxiter):
             # worst is the index of the min loglike
-            worst = logL.index(min(logL))
-            #print("worst", worst, type(worst))
-            clogw = logsumexp([prevlogx, clogx], b=[1, -1])
-            #print("clogw", clogw, type(clogw))
-            # prevlogx = clogx
-            logLw[worst] = clogw + logL[worst]
-            #print("logLw[worst]", logLw[worst], type(logLw[worst]))
-            # Update Evidence Z
-            #print(type(logLw[worst]), logLw[worst])
-            clogz = logsumexp([clogz, logLw[worst]])
-            logLstar[worst] = logL[worst]
+            # worst = logL.index(np.min(logL))
+            cx = np.exp(-(1.0+i) / self.nlive)
+            clogw = np.log(px - cx)
+            px = cx
+            # Find worst index
+            worst = np.argmin(logL)
+            clogLw = clogw + logL[worst]
+
+            # Increment z
+            clogz = np.logaddexp(clogz, clogLw)
+            # Add worst objects to samples: v, logLw, logx, logL
+
+            # Sustitute worst
             # Kill worst object in favour of copy of different survivor
             if self.nlive > 1:
                 while True:
                     copy = np.random.randint(0, self.nlive)
                     if copy != worst:
                         break
-
             upoints[worst], vpoints[worst], logL[worst] = upoints[copy], vpoints[copy], logL[copy]
-            upoints[worst], vpoints[worst], logL[worst] = self.explore(upoints[worst], logLstar[worst])
+            nu, nv, nlogL = self.explore(upoints[worst], logL[worst])
+            upoints[worst], vpoints[worst], logL[worst] = nu, nv, nlogL
+            # dead.append([upoints[worst], vpoints[worst], logL[worst],
+            #             logw[worst], logLw[worst], logz[worst]])
 
-            dead.append([upoints[worst], vpoints[worst], logL[worst],
-                        logw[worst], logLw[worst], logz[worst]])
-
-            # rlogz logz remain in livepoints or estimate Z as in nestle
-            rlogz = np.max(logL) + clogx
-            # # dlogz is used to stopping criteria.
+            # rlogz logz remain in livepoints
+            rlogz = np.max(np.array(logL)) + clogw  # Using logx[worst] instead clogx
             dlogz = np.logaddexp(clogz, rlogz) - clogz
-            #dlogz = logsumexp([rlogz, clogz]) - clogz
-
-
-            print("{}/{} | logz: {:.3f} | dlogz: {:.3f} | logw: {:.3f} "
-                  "| logLstar: {:.3f} | v: {}".format(i+1, self.maxiter, clogz,
-                                          dlogz, clogw, logL[worst], vpoints[worst]))
-
-            if dlogz < np.log(accuracy):
+            if dlogz < accuracy:
                 print("Stopping criteria!")
                 break
-            clogx -= 1.0 / self.nlive
 
+            print("{}/{} | logz: {:.3f} | dlogz: {:.3f} | logw: {:.3f} "
+                  "| logLstar: {:.3f} | v: {}".format(i + 1, self.maxiter, clogz,
+                                                      dlogz, clogw, logL[worst], vpoints[worst]))
+
+            # Update Evidence Z
+            clogz = logsumexp([clogz, clogLw])
+            # Shrink interval of prior volume.
+            clogw -= 1.0 / self.nlive
+
+        sumloglx_over_n = np.sum(logL) + np.log(cx) - np.log(self.nlive)
+        clogz = logsumexp([clogz, sumloglx_over_n])
+        print("Final logZ: {}".format(clogz))
 
     def explore(self, uworst, logLstar):
         step = 0.1
