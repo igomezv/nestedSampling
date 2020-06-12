@@ -9,9 +9,9 @@ class nested:
         self.nlive = nlive
         self.maxiter = maxiter
 
-    def sampling(self, accuracy=0.01):
+    def sampling(self, dlogz=0.01):
         """
-        accuracy = 0.01 -> f = exp(0.01) = 1.01
+        dlogz = 0.01 -> f = exp(0.01) = 1.01
         The stopping criteria is when the volume
         maxloglike*prior_mass increase by 0.01 the current Z
         So:
@@ -32,8 +32,8 @@ class nested:
             upoints.append(np.random.rand(self.ndims))
             vpoints.append(self.priorTransform(upoints[i]))
             logL.append(self.loglike(vpoints[i]))
-            logLw.append(1)
-            logw.append(1)
+            logLw.append(1e-300)
+            logw.append(1e-300)
             logz.append(1e-300)
         # Begin the nested sampling loop
         clogz = -1e300
@@ -67,14 +67,14 @@ class nested:
 
             # rlogz -> logz remain in livepoints
             rlogz = np.max(np.array(logL)) + clogw
-            dlogz = np.logaddexp(clogz, rlogz) - clogz
-            if dlogz < accuracy:
+            cdlogz = np.logaddexp(clogz, rlogz) - clogz
+            if cdlogz < dlogz:
                 print("Stopping criteria!")
                 break
 
             print("{}/{} | logz: {:.3f} | dlogz: {:.3f} | logw: {:.3f} "
                   "| logLstar: {:.3f} | v: {}".format(i + 1, self.maxiter, clogz,
-                                                      dlogz, clogw, logL[worst], vpoints[worst]))
+                                                      cdlogz, clogw, logL[worst], vpoints[worst]))
 
             # Update Evidence Z
             clogz = logsumexp([clogz, clogLw])

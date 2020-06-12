@@ -1,4 +1,4 @@
-from nestedSampling import nestedSampling
+# from nestedSampling import nestedSampling
 from nested import nested
 import numpy as np
 import dynesty
@@ -87,24 +87,10 @@ def saveDynestyChain(result, outputname):
         f.write(nrow + '\n')
 
 s = nested(logLike, priorTransform, nlive=50, ndims=2)
-s.sampling()
-#
-# s = nestedSampling(logLike, priorTransform, nlive=50, ndims=2, maxiter=20000, outputname="line_without")
-# s.sampling(accuracy=0.01)
-#
-#
+s.sampling(dlogz=0.01)
+
 dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
                                   bound='single', sample='unif', nlive=50)
 dysampler.run_nested(dlogz=0.01)
-# dyresults = dysampler.results
-# saveDynestyChain(dyresults, "dynestyLine_single")
-#
-# dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
-#                                   bound='multi', sample='unif', nlive=50)
-# dysampler.run_nested(dlogz=0.01)
-# dyresults = dysampler.results
-# saveDynestyChain(dyresults, "dynestyLine_multi")
-#
-#
 
 
