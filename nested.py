@@ -10,6 +10,13 @@ class nested:
         self.maxiter = maxiter
 
     def sampling(self, accuracy=0.01):
+        """
+        accuracy = 0.01 -> f = exp(0.01) = 1.01
+        The stopping criteria is when the volume
+        maxloglike*prior_mass increase by 0.01 the current Z
+        So:
+            maxLoglikes * Xj < Z * 1.01 = Z * (1  + 0.01)
+        """
         #u, x, logx, logw, logz
         upoints = []
         vpoints = []
@@ -25,44 +32,41 @@ class nested:
             upoints.append(np.random.rand(self.ndims))
             vpoints.append(self.priorTransform(upoints[i]))
             logL.append(self.loglike(vpoints[i]))
-            logLstar.append(logL[i])
-            logx.append(0)
             logLw.append(1)
             logw.append(1)
             logz.append(1e-300)
         # Begin the nested sampling loop
         clogz = -1e300
+        # previous x, where x is the prior mass point X_i
         px = 1.
 
         for i in range(self.maxiter):
-            # worst is the index of the min loglike
-            # worst = logL.index(np.min(logL))
+            # current x -> cx
             cx = np.exp(-(1.0+i) / self.nlive)
             clogw = np.log(px - cx)
             px = cx
-            # Find worst index
+            # Find worst index (min loglike)
             worst = np.argmin(logL)
+            # log(L*w) = logL + logw
             clogLw = clogw + logL[worst]
-
-            # Increment z
+            # Increment z += Lw
             clogz = np.logaddexp(clogz, clogLw)
-            # Add worst objects to samples: v, logLw, logx, logL
+            # Add worst objects to samples: v, logLw, logw, logL
 
-            # Sustitute worst
             # Kill worst object in favour of copy of different survivor
             if self.nlive > 1:
                 while True:
                     copy = np.random.randint(0, self.nlive)
                     if copy != worst:
                         break
+
             upoints[worst], vpoints[worst], logL[worst] = upoints[copy], vpoints[copy], logL[copy]
-            nu, nv, nlogL = self.explore(upoints[worst], logL[worst])
-            upoints[worst], vpoints[worst], logL[worst] = nu, nv, nlogL
+            upoints[worst], vpoints[worst], logL[worst] = self.explore(upoints[worst], logL[worst])
             # dead.append([upoints[worst], vpoints[worst], logL[worst],
             #             logw[worst], logLw[worst], logz[worst]])
 
-            # rlogz logz remain in livepoints
-            rlogz = np.max(np.array(logL)) + clogw  # Using logx[worst] instead clogx
+            # rlogz -> logz remain in livepoints
+            rlogz = np.max(np.array(logL)) + clogw
             dlogz = np.logaddexp(clogz, rlogz) - clogz
             if dlogz < accuracy:
                 print("Stopping criteria!")
@@ -77,6 +81,7 @@ class nested:
             # Shrink interval of prior volume.
             clogw -= 1.0 / self.nlive
 
+        # Last increment in Z
         sumloglx_over_n = np.sum(logL) + np.log(cx) - np.log(self.nlive)
         clogz = logsumexp([clogz, sumloglx_over_n])
         print("Final logZ: {}".format(clogz))
