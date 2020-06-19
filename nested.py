@@ -3,7 +3,7 @@ import numpy as np
 from scipy.special import logsumexp
 
 class nested:
-    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=10000):
+    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=1000000):
         self.loglike = loglike
         self.priorTransform = priorTransform
         self.ndims = ndims
@@ -22,12 +22,14 @@ class nested:
         lupoints = np.random.rand(self.nlive, self.ndims)  # position in unit cube
         lvpoints = np.empty((self.nlive, self.ndims), dtype=np.float64)  # real params
         lloglikes = np.empty((self.nlive,), dtype=np.float64)
+        lloglw = np.empty((self.nlive,), dtype=np.float64)
         # Start nlive points
         print("Creating first nlive points")
         for i in range(self.nlive):
             lvpoints[i, :] = self.priorTransform(lupoints[i, :])
             lloglikes[i] = self.loglike(lvpoints[i, :])
-            print("{} live point created".format(i+1))
+            lloglw[i] = 0.0
+            print("{} live point created: {}, logl: {}".format(i+1, lvpoints[i, :], lloglikes[i]))
             # print("{} {}".format(lvpoints[i, :], lloglikes[i]))
         print("live points created")
         # Begin the nested sampling loop
@@ -38,7 +40,7 @@ class nested:
         slogw = []
         # initial values
         clogz = -1e300
-        # previous x, where x is the prior mass point X_i
+        # previous x, where x is the prior mass point X_i -> X_0 = 1
         px = 1.
 
         for i in range(self.maxiter):
@@ -60,24 +62,23 @@ class nested:
             slogw.append(clogw)
 
             loglstar = lloglikes[worst]
-            #Kill worst object in favour of copy of different survivor
+            # #Kill worst object in favour of copy of different survivor
             while True:
                 copy = np.random.randint(self.nlive)
                 if copy != worst:
-                    u = lupoints[copy, :]
-                    # print("u", u)
+                    u = lupoints[worst, :]
                     break
             nu, nv, nlogl = self.explore(u, loglstar)
             lupoints[worst] = nu
             lvpoints[worst] = nv
             lloglikes[worst] = nlogl
+            lloglw[worst] = clogw
 
             # Update Evidence Z
             clogz = logsumexp([clogz, clogLw])
 
             # Shrink interval of prior volume.
             clogw -= 1.0 / self.nlive
-            #plist.append(prow)
             # rlogz -> logz remain in livepoints
             rlogz = np.max(lloglikes) + clogw
             cdlogz = np.logaddexp(clogz, rlogz) - clogz
@@ -92,12 +93,17 @@ class nested:
         sumloglx_over_n = np.sum(lloglikes) + np.log(cx) - np.log(self.nlive)
         clogz = logsumexp([clogz, sumloglx_over_n])
         print("Final logZ: {}".format(clogz))
-
+        finalx = np.exp(clogLw)/self.nlive
+        # Adding last live points to posterior samples
+        for i in range(self.nlive):
+             slogLw.append(finalx)
+             slogL.append(lloglikes[i])
+             svpoints.append(lvpoints[i])
         # Postprocessing
         normws = logsumexp(np.array(slogLw))
         nLw = np.exp(np.array(slogLw) - normws)
         nsamp, _ = np.shape(svpoints)
-        f = open("posteriors.txt", "+w")
+        f = open("posteriors2.txt", "+w")
         for i in range(nsamp):
             strv=""
             for el, p in enumerate(svpoints[i]):
@@ -113,23 +119,23 @@ class nested:
         accept = 0
         reject = 0
         ncall = 0
-        n = 20
-        for _ in range(n):
+        nsteps = 50
+        for it in range(nsteps):
             while True:
                 pu = uworst + step * np.random.randn(self.ndims)
                 if np.all(pu > 0.) and np.all(pu < 1.):
                      break
             pv = self.priorTransform(pu)
             ploglike = self.loglike(pv)
-            if ploglike >= logLstar:
+            if ploglike > logLstar:
                 accept += 1
                 break
+            elif it == nsteps-1:
+                 ploglike = logLstar
+                 pv = self.priorTransform(uworst)
+                 pu = uworst
             else:
                 reject += 1
-            # Refine step-size
-            if accept > reject:
-                step *= np.exp(1.0 / accept)
-            elif accept < reject:
                 step /= np.exp(1.0 / reject)
-        return pu, pv, ploglike
 
+        return pu, pv, ploglike
