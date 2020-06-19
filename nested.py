@@ -66,7 +66,7 @@ class nested:
             while True:
                 copy = np.random.randint(self.nlive)
                 if copy != worst:
-                    u = lupoints[worst, :]
+                    u = lupoints[copy, :]
                     break
             nu, nv, nlogl = self.explore(u, loglstar)
             lupoints[worst] = nu
