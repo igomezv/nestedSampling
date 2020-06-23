@@ -9,6 +9,9 @@ class nested:
         self.ndims = ndims
         self.nlive = nlive
         self.maxiter = maxiter
+        self.mcaccept = 0
+        self.mcreject = 0
+        self.mcsigma = 0.1
 
     def sampling(self, dlogz=0.01):
         """
@@ -66,7 +69,7 @@ class nested:
             while True:
                 copy = np.random.randint(self.nlive)
                 if copy != worst:
-                    u = lupoints[copy, :]
+                    u = lupoints[worst, :]
                     break
             nu, nv, nlogl = self.explore(u, loglstar)
             lupoints[worst] = nu
@@ -94,7 +97,7 @@ class nested:
         clogz = logsumexp([clogz, sumloglx_over_n])
         print("Final logZ: {}".format(clogz))
         finalx = np.exp(clogLw)/self.nlive
-        # Adding last live points to posterior samples
+        # # Adding last live points to posterior samples
         for i in range(self.nlive):
              slogLw.append(finalx)
              slogL.append(lloglikes[i])
@@ -103,7 +106,7 @@ class nested:
         normws = logsumexp(np.array(slogLw))
         nLw = np.exp(np.array(slogLw) - normws)
         nsamp, _ = np.shape(svpoints)
-        f = open("posteriors2.txt", "+w")
+        f = open("posteriors.txt", "+w")
         for i in range(nsamp):
             strv=""
             for el, p in enumerate(svpoints[i]):
@@ -114,28 +117,36 @@ class nested:
             f.write("{} {} {}\n".format(nLw[i], slogL[i], strv))
         f.close()
 
-    def explore(self, uworst, logLstar):
-        step = 0.1
-        accept = 0
-        reject = 0
-        ncall = 0
-        nsteps = 50
-        for it in range(nsteps):
+    def explore(self, uworst, logLstar, nsteps=100):
+        # each nsteps * 2 callbacks check if the step size can be ajusted.
+        if self.mcreject + self.mcreject > 2*nsteps:
+            if self.mcaccept < self.mcreject:
+                self.mcsigma /= np.exp(1.0 / self.mcreject)
+            self.mcaccept = 0
+            self.mcreject = 0
+
+        for _ in range(nsteps):
+            diag = np.array([self.mcsigma**2]*self.ndims)
+            cov = np.diag(diag)
             while True:
-                pu = uworst + step * np.random.randn(self.ndims)
+                # Generate a candidate point
+                # pu = np.random.multivariate_normal(uworst, cov)
+                # pu = uworst + self.mcsigma * (2. * np.random.random(self.ndims) - 1.)
+                pu = np.random.random(self.ndims)
+                # Force that the point lies in [0, 1]
                 if np.all(pu > 0.) and np.all(pu < 1.):
                      break
+            # Obtain the respective physical point
             pv = self.priorTransform(pu)
+            # Evaluate loglike in the proposal point
             ploglike = self.loglike(pv)
-            if ploglike > logLstar:
-                accept += 1
-                break
-            elif it == nsteps-1:
-                 ploglike = logLstar
-                 pv = self.priorTransform(uworst)
-                 pu = uworst
+            # acceptance ratio r
+            if min(ploglike-logLstar, 0) > np.log(np.random.uniform(0, 1)):
+                self.mcaccept += 1
+                return pu, pv, ploglike
             else:
-                reject += 1
-                step /= np.exp(1.0 / reject)
+                self.mcreject += 1
 
-        return pu, pv, ploglike
+        return uworst, self.priorTransform(uworst), logLstar
+
+
