@@ -5,7 +5,7 @@ from scipy.special import logsumexp
 np.random.seed(0)
 
 class nested:
-    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=1000000):
+    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=100000):
         self.loglike = loglike
         self.priorTransform = priorTransform
         self.ndims = ndims
@@ -45,21 +45,15 @@ class nested:
         # previous x, where x is the prior mass point X_i -> X_0 = 1
         px = 1.
         # current x -> cx
-        cx = x = np.exp(-1.0/ self.nlive)
+        cx = np.exp(-1.0/ self.nlive)
         clogw = np.log(px-cx)
         for i in range(self.maxiter):
-            # # current x -> cx
-            # cx = np.exp(-(1.0 + i) / self.nlive)
-            # clogw = np.log(px - cx)
-            # px = cx
             # Find worst index (min loglike)
             worst = np.argmin(lloglikes)
             # print("worst:", worst)
             # log(L*w) = logL + logw
             clogLw = clogw + lloglikes[worst]
-            # Increment z += Lw
-            # clogz = np.logaddexp(clogz, clogLw)
-            # Update Evidence Z
+            # Update Z-> Increment z += Lw
             clogz = logsumexp([clogz, clogLw])
             # Add worst objects to samples: v, logLw, logw, logL
             svpoints.append(np.array(lvpoints[worst]))
@@ -67,21 +61,18 @@ class nested:
             slogLw.append(clogLw)
             slogw.append(clogw)
 
-            # #Kill worst object in favour of copy of different survivor
-            while True:
-                copy = np.random.randint(self.nlive)
-                if copy != worst:
-                    u = lupoints[worst, :]
-                    break
+            # while True:
+            #     idx = np.random.randint(self.nlive)
+            #     if idx != worst:
+            #         u = lupoints[idx, :]
+            #         break
+
             loglstar = lloglikes[worst]
-            nu, nv, nlogl = self.explore(u, loglstar)
+            nu, nv, nlogl = self.explore(lupoints[worst, :], loglstar)
             lupoints[worst] = nu
             lvpoints[worst] = nv
             lloglikes[worst] = nlogl
             lloglw[worst] = clogw
-
-            # # Update Evidence Z
-            # clogz = logsumexp([clogz, clogLw])
 
             # Shrink interval of prior volume.
             clogw -= 1.0 / self.nlive
@@ -120,8 +111,8 @@ class nested:
             f.write("{} {} {}\n".format(nLw[i], slogL[i], strv))
         f.close()
 
-    def explore(self, uworst, logLstar, nsteps=100):
-        step = 0.7
+    def explore(self, uworst, logLstar, nsteps=30):
+        step = 0.1
         accept = 0
         reject = 0
         pu = uworst
@@ -136,28 +127,28 @@ class nested:
                 tryu = np.random.multivariate_normal(pu, cov)
                 # tryu = pu + step * (2. * np.random.random(self.ndims) - 1.)
                 # Force that the point lies in [0, 1]
-                if np.all(tryu >= 0.) and np.all(tryu <= 1.):
+                if np.all(tryu > 0.) and np.all(tryu < 1.):
                      break
             # Obtain the respective physical point
             tryv = self.priorTransform(tryu)
-            # Evaluate loglike in the proposal point
+            # Evaluate loglike in the try point
             tryloglike = self.loglike(tryv)
             # acceptance ratio r
-            if min(tryloglike-ploglike, 0) > np.log(np.random.uniform(0, 1)):
+            # if min(tryloglike - ploglike, 0) > np.log(np.random.uniform(0, 1)):
             # or hard like constrain
-            # if tryloglike > ploglike:
+            if tryloglike > ploglike:
                 accept += 1
                 ploglike = tryloglike
                 pu = tryu
                 pv = tryv
             else:
                 reject += 1
-            # Refine step-size to let acceptance ratio converge around 50%
-            if accept > reject:
-                step *= np.exp(1.0 / accept)
-            elif accept < reject:
+            # Refine step-size
+            if reject > accept:
                 step /= np.exp(1.0 / reject)
-        print("accepted: {}, rejected: {}, stepsize: {}".format(accept, reject, step))
+            elif accept > reject:
+                step *= np.exp(1.0 / accept)
+
         return pu, pv, ploglike
 
 
