@@ -61,11 +61,11 @@ class nested:
             slogLw.append(clogLw)
             slogw.append(clogw)
 
-            # while True:
-            #     idx = np.random.randint(self.nlive)
-            #     if idx != worst:
-            #         u = lupoints[idx, :]
-            #         break
+            while True:
+                idx = np.random.randint(self.nlive)
+                if idx != worst:
+                    u = lupoints[idx, :]
+                    break
 
             loglstar = lloglikes[worst]
             nu, nv, nlogl = self.explore(lupoints[worst, :], loglstar)
