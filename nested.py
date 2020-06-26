@@ -5,12 +5,13 @@ from scipy.special import logsumexp
 np.random.seed(0)
 
 class nested:
-    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=100000):
+    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=100000, outputname="test"):
         self.loglike = loglike
         self.priorTransform = priorTransform
         self.ndims = ndims
         self.nlive = nlive
         self.maxiter = maxiter
+        self.outputname = outputname
 
     def sampling(self, dlogz=0.01):
         """
@@ -25,11 +26,13 @@ class nested:
         lvpoints = np.empty((self.nlive, self.ndims), dtype=np.float64)  # real params
         lloglikes = np.empty((self.nlive,), dtype=np.float64)
         lloglw = np.empty((self.nlive,), dtype=np.float64)
+        llogLstar = np.empty((self.nlive,), dtype=np.float64)
         # Start nlive points
         print("Creating first nlive points")
         for i in range(self.nlive):
             lvpoints[i, :] = self.priorTransform(lupoints[i, :])
             lloglikes[i] = self.loglike(lvpoints[i, :])
+            llogLstar[i] = np.copy(lloglikes[i])
             lloglw[i] = 0.0
             print("{} live point created: {}, logl: {}".format(i+1, lvpoints[i, :], lloglikes[i]))
             # print("{} {}".format(lvpoints[i, :], lloglikes[i]))
@@ -40,6 +43,7 @@ class nested:
         slogL = []
         slogLw = []
         slogw = []
+        slogLstar = []
         # initial values
         clogz = -1e300
         # previous x, where x is the prior mass point X_i -> X_0 = 1
@@ -48,6 +52,8 @@ class nested:
         cx = np.exp(-1.0/ self.nlive)
         clogw = np.log(px-cx)
         for i in range(self.maxiter):
+            lives = [lvpoints, lloglikes, llogLstar]
+            self.saveFile(lives)
             # Find worst index (min loglike)
             worst = np.argmin(lloglikes)
             # print("worst:", worst)
@@ -60,7 +66,8 @@ class nested:
             slogL.append(lloglikes[worst])
             slogLw.append(clogLw)
             slogw.append(clogw)
-
+            slogLstar.append(llogLstar[worst])
+            # Remove (kill) the worst point
             while True:
                 idx = np.random.randint(self.nlive)
                 if idx != worst:
@@ -68,11 +75,12 @@ class nested:
                     break
 
             loglstar = lloglikes[worst]
-            nu, nv, nlogl = self.explore(lupoints[worst, :], loglstar)
+            nu, nv, nlogl = self.explore(u, loglstar)
             lupoints[worst] = nu
             lvpoints[worst] = nv
             lloglikes[worst] = nlogl
             lloglw[worst] = clogw
+            llogLstar[worst] = loglstar
 
             # Shrink interval of prior volume.
             clogw -= 1.0 / self.nlive
@@ -91,27 +99,20 @@ class nested:
         # clogz = logsumexp([clogz, sumloglx_over_n])
         # print("Final logZ: {}".format(clogz))
         finalx = np.exp(clogLw)/self.nlive
+        deads = [svpoints, slogL, slogLstar]
+        self.saveFile(deads, type="dead")
         # # Adding last live points to posterior samples
         for i in range(self.nlive):
              slogLw.append(finalx)
              slogL.append(lloglikes[i])
              svpoints.append(lvpoints[i])
-        # Postprocessing
+        # # Postprocessing
         normws = logsumexp(np.array(slogLw))
         nLw = np.exp(np.array(slogLw) - normws)
-        nsamp, _ = np.shape(svpoints)
-        f = open("posteriors.txt", "+w")
-        for i in range(nsamp):
-            strv=""
-            for el, p in enumerate(svpoints[i]):
-                if el==0:
-                    strv = "{}{}".format(strv, p)
-                else:
-                    strv = "{} {}".format(strv, p)
-            f.write("{} {} {}\n".format(nLw[i], slogL[i], strv))
-        f.close()
+        posteriors = [svpoints, slogL, nLw]
+        self.saveFile(posteriors, type="post")
 
-    def explore(self, uworst, logLstar, nsteps=30):
+    def explore(self, uworst, logLstar, nsteps=20):
         step = 0.1
         accept = 0
         reject = 0
@@ -151,4 +152,25 @@ class nested:
 
         return pu, pv, ploglike
 
-
+    def saveFile(self, result, type='live', fname=None):
+        points, logls, star = result
+        if type == 'post':
+            fname = self.outputname+"_posteriors.txt"
+        elif type == 'live':
+            fname = self.outputname+"_live-birth.txt"
+        elif type == 'dead':
+            fname = self.outputname + "_dead-birth.txt"
+        f = open(fname, "+w")
+        nsamp, _ = np.shape(points)
+        for i in range(nsamp):
+            strp = ""
+            for el, p in enumerate(points[i]):
+                if el == 0:
+                    strp = "{}{}".format(strp, p)
+                else:
+                    strp = "{} {}".format(strp, p)
+            if type == "post":
+                f.write("{} {} {}\n".format(star[i], logls[i], strp))
+            else:
+                f.write("{} {} {}\n".format(strp, logls[i], star[i]))
+        f.close()
