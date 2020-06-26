@@ -1,13 +1,11 @@
-#from nestedSampling import nestedSampling
-from saveDynesty import saveDynestyChain
 from nested import nested
+from saveDynesty import saveDynestyChain
 import numpy as np
 import dynesty
-from math import *
 import random
+
 np.random.seed(0)
 
-# #### We need a prior Transform, logLike and Theory##########
 
 def theory(x, m, c):
     """
@@ -57,7 +55,6 @@ def priorTransform(theta):
     # print("Prior transform : {}".format(np.array(priors)))
     return points
 
-
 def logLike(theta):
     """
     This function is the logLikelihood.
@@ -70,7 +67,6 @@ def logLike(theta):
 
     return -0.5*chisq
 
-
 s = nested(logLike, priorTransform, nlive=200, ndims=2, outputname="outputs/test")
 s.sampling()
 
@@ -78,5 +74,5 @@ dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
                                   bound='single', sample='unif', nlive=200)
 dysampler.run_nested(dlogz=0.01)
 dyresults = dysampler.results
-saveDynestyChain(dyresults, "dynestySamples")
+saveDynestyChain(dyresults, "outputs/dynestySamples")
 
