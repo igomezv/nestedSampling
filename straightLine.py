@@ -1,9 +1,12 @@
-# from nestedSampling import nestedSampling
+#from nestedSampling import nestedSampling
+from saveDynesty import saveDynestyChain
 from nested import nested
 import numpy as np
 import dynesty
 from math import *
 import random
+np.random.seed(0)
+
 # #### We need a prior Transform, logLike and Theory##########
 
 def theory(x, m, c):
@@ -28,10 +31,9 @@ c = 1.2  # y-intercept of the line
 M = 1000
 xmin = 0.
 xmax = 10.
-sigma = 0.5
+sigma = 0.05
 
 stepsize = (xmax-xmin)/M
-np.random.seed(0)
 x = np.arange(xmin, xmax, stepsize)
 
 # create the data - the model plus Gaussian noise
@@ -69,28 +71,14 @@ def logLike(theta):
     return -0.5*chisq
 
 
-def saveDynestyChain(result, outputname):
-    f = open(outputname + '.txt', 'w+')
-
-    weights = np.exp(result['logwt'] - result['logz'][-1])
-
-    postsamples = result.samples
-
-    print('\n Number of posterior samples is {}'.format(postsamples.shape[0]))
-
-    for i, sample in enumerate(postsamples):
-        strweights = str(weights[i])
-        strlogl = str(result['logl'][i])
-        strsamples = str(sample).lstrip('[').rstrip(']')
-        row = strweights + ' ' + strlogl + ' ' + strsamples  # + strOLambda
-        nrow = " ".join(row.split())
-        f.write(nrow + '\n')
-
-s = nested(logLike, priorTransform, nlive=50, ndims=2)
-s.sampling(dlogz=0.01)
+s = nested(logLike, priorTransform, nlive=100, ndims=2)
+s.sampling()
+# s = nestedSampling(logLike, priorTransform, nlive=100, ndims=2, maxiter=10000)
+# s.sampling()
 
 dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
-                                  bound='single', sample='unif', nlive=50)
+                                  bound='single', sample='unif', nlive=100)
 dysampler.run_nested(dlogz=0.01)
-
+dyresults = dysampler.results
+saveDynestyChain(dyresults, "dynestySamples")
 
