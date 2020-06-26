@@ -52,8 +52,7 @@ class nested:
         cx = np.exp(-1.0/ self.nlive)
         clogw = np.log(px-cx)
         for i in range(self.maxiter):
-            lives = [lvpoints, lloglikes, llogLstar]
-            self.saveFile(lives)
+            self.saveFile([lvpoints, lloglikes, llogLstar])
             # Find worst index (min loglike)
             worst = np.argmin(lloglikes)
             # print("worst:", worst)
@@ -95,12 +94,12 @@ class nested:
                                                       cdlogz, clogw, loglstar, lvpoints[worst]))
 
         # Last increment in Z
-        # sumloglx_over_n = np.sum(lloglikes) + np.log(cx) - np.log(self.nlive)
-        # clogz = logsumexp([clogz, sumloglx_over_n])
-        # print("Final logZ: {}".format(clogz))
+        sumloglx_over_n = np.sum(lloglikes) + np.log(cx) - np.log(self.nlive)
+        clogz = logsumexp([clogz, sumloglx_over_n])
+        print("Final logZ: {}".format(clogz))
         finalx = np.exp(clogLw)/self.nlive
-        deads = [svpoints, slogL, slogLstar]
-        self.saveFile(deads, type="dead")
+
+        self.saveFile([svpoints, slogL, slogLstar], type="dead")
         # # Adding last live points to posterior samples
         for i in range(self.nlive):
              slogLw.append(finalx)
@@ -109,8 +108,7 @@ class nested:
         # # Postprocessing
         normws = logsumexp(np.array(slogLw))
         nLw = np.exp(np.array(slogLw) - normws)
-        posteriors = [svpoints, slogL, nLw]
-        self.saveFile(posteriors, type="post")
+        self.saveFile([svpoints, slogL, nLw], type="post")
 
     def explore(self, uworst, logLstar, nsteps=20):
         step = 0.1
