@@ -5,7 +5,7 @@ from scipy.special import logsumexp
 np.random.seed(0)
 
 class nested:
-    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=100000, outputname="test"):
+    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=100000, outputname="outputs/test"):
         self.loglike = loglike
         self.priorTransform = priorTransform
         self.ndims = ndims
@@ -32,7 +32,7 @@ class nested:
         for i in range(self.nlive):
             lvpoints[i, :] = self.priorTransform(lupoints[i, :])
             lloglikes[i] = self.loglike(lvpoints[i, :])
-            llogLstar[i] = np.copy(lloglikes[i])
+            llogLstar[i] = -np.inf
             lloglw[i] = 0.0
             print("{} live point created: {}, logl: {}".format(i+1, lvpoints[i, :], lloglikes[i]))
             # print("{} {}".format(lvpoints[i, :], lloglikes[i]))
@@ -89,9 +89,9 @@ class nested:
             if cdlogz < dlogz:
                 print("Stopping criteria!")
                 break
-            print("{}/{} | worst {} | logz: {:.3f} | dlogz: {:.3f} | logw: {:.3f} "
-                  "| logLstar: {:.3f} | v: {}".format(i + 1, self.maxiter, worst, clogz,
-                                                      cdlogz, clogw, loglstar, lvpoints[worst]))
+            print("{}/{} | worst {} | logz: {:.3f} | dlogz: {:.3f} | logw: {:.3f} | "
+                  "logLw: {:.3f}| logLstar: {:.3f} | v: {}".format(i + 1, self.maxiter, worst, clogz,
+                                                      cdlogz, clogw, clogLw, loglstar, lvpoints[worst]))
 
         # Last increment in Z
         sumloglx_over_n = np.sum(lloglikes) + np.log(cx) - np.log(self.nlive)
@@ -101,14 +101,18 @@ class nested:
 
         self.saveFile([svpoints, slogL, slogLstar], type="dead")
         # # Adding last live points to posterior samples
-        for i in range(self.nlive):
+        for p in range(self.nlive):
              slogLw.append(finalx)
-             slogL.append(lloglikes[i])
-             svpoints.append(lvpoints[i])
+             slogL.append(lloglikes[p])
+             svpoints.append(lvpoints[p])
         # # Postprocessing
         normws = logsumexp(np.array(slogLw))
         nLw = np.exp(np.array(slogLw) - normws)
         self.saveFile([svpoints, slogL, nLw], type="post")
+
+        return {'it': i+1, 'logz': clogz, 'dlogz': dlogz, 'loglw': slogLw,
+                'logl': slogL, 'loglstar' : slogLstar, 'samples' : svpoints}
+
 
     def explore(self, uworst, logLstar, nsteps=20):
         step = 0.1
@@ -149,6 +153,7 @@ class nested:
                 step *= np.exp(1.0 / accept)
 
         return pu, pv, ploglike
+
 
     def saveFile(self, result, type='live', fname=None):
         points, logls, star = result
