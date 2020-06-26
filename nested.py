@@ -160,7 +160,7 @@ class nested:
         if type == 'post':
             fname = self.outputname+"_posteriors.txt"
         elif type == 'live':
-            fname = self.outputname+"_live-birth.txt"
+            fname = self.outputname+"_phys_live-birth.txt"
         elif type == 'dead':
             fname = self.outputname + "_dead-birth.txt"
         f = open(fname, "+w")
