@@ -71,13 +71,11 @@ def logLike(theta):
     return -0.5*chisq
 
 
-s = nested(logLike, priorTransform, nlive=100, ndims=2)
+s = nested(logLike, priorTransform, nlive=200, ndims=2, outputname="outputs/test")
 s.sampling()
-# s = nestedSampling(logLike, priorTransform, nlive=100, ndims=2, maxiter=10000)
-# s.sampling()
 
 dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,
-                                  bound='single', sample='unif', nlive=100)
+                                  bound='single', sample='unif', nlive=200)
 dysampler.run_nested(dlogz=0.01)
 dyresults = dysampler.results
 saveDynestyChain(dyresults, "dynestySamples")
