@@ -5,7 +5,10 @@ import scipy as sc
 
 class nested:
     def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=100000,
-                 outputname="outputs/test", mc_scale=0.0001, ajust_mcstep=False):
+                 outputname="outputs/test", sampletype='diff',
+                 mc_scale=0.0001, ajust_mcstep=False):
+        # mcmc fixed step_size = (0.001-0.01), mcmc_cov step_size = (0.0001-0.001)
+        # self.sampletype = {'mcmc', 'mcmc_cov', 'diff'}
         self.loglike = loglike
         self.priorTransform = priorTransform
         self.ndims = ndims
@@ -19,9 +22,7 @@ class nested:
         self.ajust_mcstep = ajust_mcstep
         # self.scale = 1 # if ajust_scale = True
         self.scale = mc_scale
-        # mcmc fixed step_size = (0.001-0.01), mcmc_cov step_size = (0.0001-0.001)
-        # self.sampletype = {'mcmc', 'mcmc_cov', 'diff'}
-        self.sampletype = 'diff'
+        self.sampletype = sampletype
 
     def sampling(self, dlogz=0.01):
         """
