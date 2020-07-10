@@ -111,7 +111,6 @@ class nested:
         sumloglx_over_n = np.sum(lloglikes) + np.log(cx) - np.log(self.nlive)
         clogz = logsumexp([clogz, sumloglx_over_n])
         print("Final logZ: {}".format(clogz))
-        finalx = np.exp(clogLw)/self.nlive
 
         self.saveFile([svpoints, slogL, slogLstar], type="dead")
         # # Adding last live points to posterior samples
