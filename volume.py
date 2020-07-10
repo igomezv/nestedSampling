@@ -3,6 +3,7 @@ from saveDynesty import saveDynestyChain
 import numpy as np
 import random
 from anesthetic import NestedSamples
+import matplotlib.pyplot as plt
 
 def priorTransform(theta):
     return theta
@@ -19,13 +20,15 @@ samples = NestedSamples(root='outputs/gaussian')
 # - These do not look gaussian
 # - increasing the number of steps makes them look worse
 samples.plot_2d([0,1])
+plt.show()
 
 
 last_samp = samples.iloc[-1,:ndims]
 volume = ((last_samp - 0.5)**2).sum() * np.pi # volume is pi r^2
 logX = np.log(volume)
 
-samples.logX() # Need to finish anesthetic PR https://github.com/williamjameshandley/anesthetic/pull/81
+#samples.logX()
+#samples.logX() # Need to finish anesthetic PR https://github.com/williamjameshandley/anesthetic/pull/81
 # Want to check these look the same
 
 # Also should generalise to n-d balls
