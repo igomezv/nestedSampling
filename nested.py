@@ -1,8 +1,7 @@
 import sys
 import numpy as np
 from scipy.special import logsumexp
-
-np.random.seed(0)
+import scipy as sc
 
 class nested:
     def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=100000, outputname="outputs/test"):
@@ -12,6 +11,11 @@ class nested:
         self.nlive = nlive
         self.maxiter = maxiter
         self.outputname = outputname
+        # Following is for mcmc_explore
+        self.mcaccept = 0
+        self.mcreject = 0
+        self.list_accept = []
+        self.scale = 1
 
     def sampling(self, dlogz=0.01):
         """
@@ -21,22 +25,22 @@ class nested:
         So:
             maxLoglikes * Xj < Z * 1.01 = Z * (1  + 0.01)
         """
-        # l -> live lloglikes-> live loglikes
-        lupoints = np.random.rand(self.nlive, self.ndims)  # position in unit cube
-        lvpoints = np.empty((self.nlive, self.ndims), dtype=np.float64)  # real params
+        lupoints = np.empty((self.nlive, self.ndims), dtype=np.float64)  # unit cube params
+        lvpoints = np.empty((self.nlive, self.ndims), dtype=np.float64)  # physical params
         lloglikes = np.empty((self.nlive,), dtype=np.float64)
         lloglw = np.empty((self.nlive,), dtype=np.float64)
         llogLstar = np.empty((self.nlive,), dtype=np.float64)
         # Start nlive points
         print("Creating first nlive points")
         for i in range(self.nlive):
+            lupoints[i, :] = np.random.rand(self.ndims)
             lvpoints[i, :] = self.priorTransform(lupoints[i, :])
             lloglikes[i] = self.loglike(lvpoints[i, :])
             llogLstar[i] = -np.inf
             lloglw[i] = 0.0
             print("{} live point created: {}, logl: {}".format(i+1, lvpoints[i, :], lloglikes[i]))
             # print("{} {}".format(lvpoints[i, :], lloglikes[i]))
-        print("live points created")
+        print("first live points created")
         # Begin the nested sampling loop
         # s -> saved
         svpoints = []
@@ -49,7 +53,7 @@ class nested:
         # previous x, where x is the prior mass point X_i -> X_0 = 1
         px = 1.
         # current x -> cx
-        cx = np.exp(-1.0/ self.nlive)
+        cx = np.exp(-1.0 / self.nlive)
         clogw = np.log(px-cx)
         for i in range(self.maxiter):
             self.saveFile([lvpoints, lloglikes, llogLstar])
@@ -66,15 +70,15 @@ class nested:
             slogLw.append(clogLw)
             slogw.append(clogw)
             slogLstar.append(llogLstar[worst])
-            # Remove (kill) the worst point
-            while True:
-                idx = np.random.randint(self.nlive)
-                if idx != worst:
-                    u = lupoints[idx, :]
-                    break
 
             loglstar = lloglikes[worst]
-            nu, nv, nlogl = self.explore(u, loglstar)
+            livecov = np.cov(lupoints[:, 0], lupoints[:, 1])
+
+            #nu, nv, nlogl = self.diff_evol(lupoints, worst, loglstar)
+            idx = np.random.randint(self.nlive) # choose another point to sample from it
+            #nu, nv, nlogl = self.mcmc_explore(lupoints[idx], lvpoints[idx], loglstar, cov=livecov)
+            nu, nv, nlogl = self.mcmc_explore(lupoints[idx], lvpoints[idx], loglstar)
+
             lupoints[worst] = nu
             lvpoints[worst] = nv
             lloglikes[worst] = nlogl
@@ -102,55 +106,90 @@ class nested:
         self.saveFile([svpoints, slogL, slogLstar], type="dead")
         # # Adding last live points to posterior samples
         for p in range(self.nlive):
-             slogLw.append(finalx)
+             slogLw.append(lloglw[p])
              slogL.append(lloglikes[p])
              svpoints.append(lvpoints[p])
         # # Postprocessing
-        normws = logsumexp(np.array(slogLw))
-        nLw = np.exp(np.array(slogLw) - normws)
-        self.saveFile([svpoints, slogL, nLw], type="post")
+        #normws = logsumexp(np.array(slogLw))
+        # nLw = np.exp(np.array(slogLw) - normws)
+        pi = np.exp(slogL + slogw - clogz)
+        self.saveFile([svpoints, slogL, pi], type="post")
 
         return {'it': i+1, 'logz': clogz, 'dlogz': dlogz, 'loglw': slogLw,
                 'logl': slogL, 'loglstar' : slogLstar, 'samples' : svpoints}
 
 
-    def explore(self, uworst, logLstar, nsteps=20):
-        step = 0.1
-        accept = 0
-        reject = 0
-        pu = uworst
-        pv = self.priorTransform(pu)
-        ploglike = logLstar
-
-        for _ in range(nsteps):
-            diag = np.array([step**2]*self.ndims)
-            cov = np.diag(diag)
+    def diff_evol(self, upoints, worstidx, logLstar):
+        while True:
+            idx1 = np.random.randint(self.nlive)
             while True:
-                # Generate a candidate point
-                tryu = np.random.multivariate_normal(pu, cov)
-                # tryu = pu + step * (2. * np.random.random(self.ndims) - 1.)
-                # Force that the point lies in [0, 1]
-                if np.all(tryu > 0.) and np.all(tryu < 1.):
-                     break
-            # Obtain the respective physical point
+                idx2 = np.random.randint(self.nlive)
+                if idx2 != idx1:
+                    break
+            # Generate a candidate point
+            tryu = upoints[worstidx] + upoints[idx2] - upoints[idx1]
             tryv = self.priorTransform(tryu)
-            # Evaluate loglike in the try point
             tryloglike = self.loglike(tryv)
-            # acceptance ratio r
-            # if min(tryloglike - ploglike, 0) > np.log(np.random.uniform(0, 1)):
-            # or hard like constrain
-            if tryloglike > ploglike:
-                accept += 1
-                ploglike = tryloglike
-                pu = tryu
-                pv = tryv
-            else:
-                reject += 1
-            # Refine step-size
-            if reject > accept:
-                step /= np.exp(1.0 / reject)
-            elif accept > reject:
-                step *= np.exp(1.0 / accept)
+            if tryloglike > logLstar:
+                break
+
+        return tryu, tryv, tryloglike
+
+    def mcmc_explore(self, uworst, vworst, logLstar, cov=None, nsteps=100):
+        pu = uworst
+        pv = vworst
+        ploglike = logLstar
+        if cov is not None:
+            # take the diagonal of covariance matrix
+            for j, item in enumerate(cov):
+                for k, c in enumerate(item):
+                    if j != k:
+                        cov[j, k] = 0
+            # normalize values of covariance matrix
+            sumcov = np.sum(cov)
+            cov = cov/sumcov
+
+        while(True):
+            if len(self.list_accept) > 0:
+                m = np.mean(self.list_accept)
+                if m > 0.5:
+                    self.scale *= np.exp(1. / np.sum(self.list_accept))
+                else:
+                    self.scale /= np.exp(1. / (len(self.list_accept) - np.sum(self.list_accept)))
+                self.list_accept = []
+            naccepts = 0
+            for it in range(nsteps):
+                while True:
+                    # Generate a candidate point
+                    if cov is not None:
+                        tryu = np.random.multivariate_normal(uworst, self.scale*cov)
+                    # as in nested_sampling Buchner implementation from github
+                    else:
+                        tryu = uworst + np.random.normal(0, self.scale, size=self.ndims)
+                    # Force that the point lies in [0, 1]
+                    if np.all(tryu >= 0.) and np.all(tryu <= 1.):
+                        break
+                # Obtain the respective physical point
+                # Evaluate loglike in the try point
+                tryv = self.priorTransform(tryu)
+                tryloglike = self.loglike(tryv)
+                #print("current like: {}, try like: {}".format(logLstar, tryloglike))
+                # acceptance ratio r
+                #if min(tryloglike - ploglike, 0) > np.log(np.random.uniform(0, 1)):
+                # or hard like constrain
+                # accept = L > Li or numpy.random.uniform() < exp(L - Li)
+                accept = tryloglike >= ploglike
+                if accept:
+                    ploglike = tryloglike
+                    pu = tryu
+                    pv = tryv
+                    naccepts+=1
+                self.list_accept.append(accept)
+                if it > 100:
+                    if tryloglike >= ploglike:
+                        break
+            if naccepts > 0:
+                break
 
         return pu, pv, ploglike
 
