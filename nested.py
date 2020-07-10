@@ -4,7 +4,8 @@ from scipy.special import logsumexp
 import scipy as sc
 
 class nested:
-    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=100000, outputname="outputs/test"):
+    def __init__(self, loglike, priorTransform, nlive, ndims, maxiter=100000,
+                 outputname="outputs/test", mc_scale=0.0001, ajust_mcstep=False):
         self.loglike = loglike
         self.priorTransform = priorTransform
         self.ndims = ndims
@@ -15,7 +16,12 @@ class nested:
         self.mcaccept = 0
         self.mcreject = 0
         self.list_accept = []
-        self.scale = 1
+        self.ajust_mcstep = ajust_mcstep
+        # self.scale = 1 # if ajust_scale = True
+        self.scale = mc_scale
+        # mcmc fixed step_size = (0.001-0.01), mcmc_cov step_size = (0.0001-0.001)
+        # self.sampletype = {'mcmc', 'mcmc_cov', 'diff'}
+        self.sampletype = 'diff'
 
     def sampling(self, dlogz=0.01):
         """
@@ -72,12 +78,16 @@ class nested:
             slogLstar.append(llogLstar[worst])
 
             loglstar = lloglikes[worst]
-            livecov = np.cov(lupoints[:, 0], lupoints[:, 1])
 
-            #nu, nv, nlogl = self.diff_evol(lupoints, worst, loglstar)
-            idx = np.random.randint(self.nlive) # choose another point to sample from it
-            #nu, nv, nlogl = self.mcmc_explore(lupoints[idx], lvpoints[idx], loglstar, cov=livecov)
-            nu, nv, nlogl = self.mcmc_explore(lupoints[idx], lvpoints[idx], loglstar)
+            if self.sampletype == 'diff':
+                nu, nv, nlogl = self.diff_evol(lupoints, worst, loglstar)
+            else:
+                idx = np.random.randint(self.nlive) # choose another point to sample from it
+                if self.sampletype == 'mcmc_cov':
+                    livecov = np.cov(lupoints[:, 0], lupoints[:, 1])
+                    nu, nv, nlogl = self.mcmc_explore(lupoints[idx], lvpoints[idx], loglstar, cov=livecov)
+                elif self.sampletype == 'mcmc':
+                    nu, nv, nlogl = self.mcmc_explore(lupoints[idx], lvpoints[idx], loglstar)
 
             lupoints[worst] = nu
             lvpoints[worst] = nv
@@ -130,7 +140,7 @@ class nested:
             tryu = upoints[worstidx] + upoints[idx2] - upoints[idx1]
             tryv = self.priorTransform(tryu)
             tryloglike = self.loglike(tryv)
-            if tryloglike > logLstar:
+            if tryloglike >= logLstar:
                 break
 
         return tryu, tryv, tryloglike
@@ -145,18 +155,19 @@ class nested:
                 for k, c in enumerate(item):
                     if j != k:
                         cov[j, k] = 0
-            # normalize values of covariance matrix
+            #normalize values of covariance matrix
             sumcov = np.sum(cov)
             cov = cov/sumcov
 
         while(True):
             if len(self.list_accept) > 0:
-                m = np.mean(self.list_accept)
-                if m > 0.5:
-                    self.scale *= np.exp(1. / np.sum(self.list_accept))
-                else:
-                    self.scale /= np.exp(1. / (len(self.list_accept) - np.sum(self.list_accept)))
-                self.list_accept = []
+                if self.ajust_mcstep:
+                    m = np.mean(self.list_accept)
+                    if m > 0.5:
+                        self.scale *= np.exp(1. / np.sum(self.list_accept))
+                    else:
+                        self.scale /= np.exp(1. / (len(self.list_accept) - np.sum(self.list_accept)))
+                    self.list_accept = []
             naccepts = 0
             for it in range(nsteps):
                 while True:
@@ -184,10 +195,14 @@ class nested:
                     pu = tryu
                     pv = tryv
                     naccepts+=1
-                self.list_accept.append(accept)
-                if it > 100:
+                if self.ajust_mcstep is False:
                     if tryloglike >= ploglike:
                         break
+                else:
+                    self.list_accept.append(accept)
+                    if it > 100:
+                        if tryloglike >= ploglike:
+                            break
             if naccepts > 0:
                 break
 
