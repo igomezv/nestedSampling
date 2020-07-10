@@ -124,7 +124,7 @@ class nested:
         pi = np.exp(slogL + slogw - clogz)
         self.saveFile([svpoints, slogL, pi], type="post")
 
-        return {'it': i+1, 'logz': clogz, 'dlogz': dlogz, 'loglw': slogLw,
+        return {'it': i+1, 'logz': clogz, 'dlogz': dlogz, 'loglw': slogLw, 'logw' : slogw,
                 'logl': slogL, 'loglstar' : slogLstar, 'samples' : svpoints}
 
 
