@@ -23,14 +23,25 @@ samples.plot_2d([0,1])
 plt.show()
 
 
-last_samp = samples.iloc[-1,:ndims]
+last_samp = samples.iloc[-200,:ndims]
 volume = ((last_samp - 0.5)**2).sum() * np.pi # volume is pi r^2
+volume
 logX = np.log(volume)
 
-#samples.logX()
+logXs = samples.logX(1000)
+for j, i in enumerate(reversed(range(0,len(logXs),100))):
+    logXs.iloc[i].hist(alpha=0.8)
+    last_samp = samples.iloc[i,:ndims]
+    volume = ((last_samp - 0.5)**2).sum() * np.pi # volume is pi r^2
+    logX = np.log(volume)
+    plt.axvline(logX, color='C%i' % j)
+
+plt.axvline(logX, color='k')
+plt.show()
+
+
 #samples.logX() # Need to finish anesthetic PR https://github.com/williamjameshandley/anesthetic/pull/81
 # Want to check these look the same
 
 # Also should generalise to n-d balls
 # https://en.wikipedia.org/wiki/N-sphere#Volume_and_surface_area
-
