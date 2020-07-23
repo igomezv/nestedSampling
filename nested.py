@@ -75,7 +75,8 @@ class nested:
             while idx == worst:
                 idx = np.random.randint(self.nlive) # choose another point to sample from it
 
-            livecov = np.cov(lupoints[:, 0], lupoints[:, 1])
+            # livecov = np.cov(lupoints[:, 0], lupoints[:, 1])
+            livecov = np.cov(lupoints, rowvar=False, bias=True)
             nu, nv, nlogl = self.mcmc_explore(lupoints[idx], loglstar, self.scale*livecov)
 
             lupoints[worst] = nu
