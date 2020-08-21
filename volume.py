@@ -4,6 +4,8 @@ import numpy as np
 import random
 from anesthetic import NestedSamples
 import matplotlib.pyplot as plt
+from scipy.special import gammaln
+from scipy.special import gamma
 
 def priorTransform(theta):
     return theta
@@ -11,23 +13,14 @@ def priorTransform(theta):
 def logLike(theta):
     return -1/2/0.1**2 * ((theta-0.5)**2).sum()
 
-def gamma_fn(m):
-    if m == 0 or m == 1:
-        return 1
-    elif m == 0.5:
-        return 0.5 * np.sqrt(np.pi)
-    else:
-        return (m-1) * gamma_fn(m-2)
-
 def volNsphere(r, n):
     m = n / 2 + 1
-    return r**n * np.power(np.pi, n/2) / gamma_fn(m)
+    return r**n * (np.power(np.pi, n/2) / gamma(m))
 
 
 ndims = 3
 
-
-s = nested(logLike, priorTransform, nlive=200, ndims=ndims, outputname="outputs/gaussian")
+s = nested(logLike, priorTransform, nlive=100, ndims=ndims, outputname="outputs/gaussian")
 s.sampling()
 samples = NestedSamples(root='outputs/gaussian')
 
@@ -42,7 +35,7 @@ logX = np.log(volume)
 
 logXs = samples.logX(1000)
 
-for j, i in enumerate(reversed(range(0, len(logXs), 100))):
+for j, i in enumerate(reversed(range(0, len(logXs), 10))):
     logXs.iloc[i].hist(alpha=0.8)
     last_samp = samples.iloc[i, :ndims]
     # volume = ((last_samp - 0.5)**2).sum() * np.pi
