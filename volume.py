@@ -1,5 +1,5 @@
-from nested import nested
-from saveDynesty import saveDynestyChain
+from nestedSampling.NestedSampling import NestedSampling
+from nestedSampling.saveDynesty import saveDynestyChain
 import numpy as np
 import random
 from anesthetic import NestedSamples
@@ -20,7 +20,7 @@ def volNsphere(r, n):
 
 ndims = 3
 
-s = nested(logLike, priorTransform, nlive=100, ndims=ndims, outputname="outputs/gaussian")
+s = NestedSampling(logLike, priorTransform, nlive=100, ndims=ndims, outputname="outputs/gaussian")
 s.sampling()
 samples = NestedSamples(root='outputs/gaussian')
 
