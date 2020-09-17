@@ -1,12 +1,29 @@
 # nestedSampling
 
-Toy nested sampling based on Skilling (2006) Nested Sampling for General Bayesian Computation. 
+Content:
 
-Prior mass:
+- nestedSampling - It contains an implementation for nested Sampling and a script
+                 to save in txt the dynesty output.
+
+- finalLivePoints - Scripts trying to fit a set of live points.
+
+- Notebooks - some examples and tests
+
+- outputs / Figures - outputs in text files or figures. 
+              
+
+------------------------------------------------------------
+------------------------------------------------------------ 
+
+Some notes: 
+
+- Based on Skilling (2006) 
+
+- Prior mass:
 
 <img src="https://render.githubusercontent.com/render/math?math=\int_{L(\theta) > \lambda} \pi (\theta) d \theta">
 
-Evidence: 
+- Evidence: 
 <img src="https://render.githubusercontent.com/render/math?math=Z=\int_0^1 L(X) dX">
 
 <img src="https://render.githubusercontent.com/render/math?math=<0 (X_{m+1}) < X_m < ... < X_2 < X_1 < 1 (X_0)">
@@ -19,12 +36,11 @@ where:
 
 <img src="https://render.githubusercontent.com/render/math?math=\omega \approx \Delta X">
 
-Initial prior mass:
+- Initial prior mass:
 
 <img src="https://render.githubusercontent.com/render/math?math=X_0 = 1">
 
-
-Remaining prior mass : 
+- Remaining prior mass : 
 
 <img src="https://render.githubusercontent.com/render/math?math=X_i = t_i X_{i-1}">
 
@@ -38,15 +54,15 @@ where N is the number of live points and t_i the largest of N random numbers fro
 
 <img src="https://render.githubusercontent.com/render/math?math=t_i \sim \beta(N,1)">
 
-Mean:
+- Mean:
 
 <img src="https://render.githubusercontent.com/render/math?math=E(log t) = \frac{-1}{N}">
 
-Std dev: 
+- Std dev: 
 
 <img src="https://render.githubusercontent.com/render/math?math=dev(log) = \frac{1}{N}">
 
-Algorithm 1 Skilling's paper:
+- Algorithm 1 Skilling's paper:
 
 	1) Start with N points from prior;
 	2) initialise Z = 0, X_0 = 1.
