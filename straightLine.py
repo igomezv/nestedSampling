@@ -1,5 +1,5 @@
-from nested import nested
-from saveDynesty import saveDynestyChain
+from nestedSampling.NestedSampling import NestedSampling
+from nestedSampling.saveDynesty import saveDynestyChain
 import numpy as np
 import dynesty
 import random
@@ -67,7 +67,8 @@ def logLike(theta):
 
     return -0.5*chisq
 
-s = nested(logLike, priorTransform, nlive=200, ndims=2, outputname="outputs/test")
+s = NestedSampling(logLike, priorTransform, nlive=200,
+                   ndims=2, outputname="outputs/test")
 s.sampling()
 
 dysampler = dynesty.NestedSampler(logLike, priorTransform, 2,

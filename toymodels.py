@@ -1,4 +1,4 @@
-from SkillingNS import SkillingNS
+from nestedSampling.NestedSampling import NestedSampling
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -8,10 +8,17 @@ nDims = 2
 bounds = [[-5., 5.], [-5., 5.]]
 nlive = 128
 
-def plotterOutput(df, filename='toymodel plot'):
-    ax1 = df.plot.scatter(x='x', y='y')
-    ax1.axis('equal')
+def plotterOutput(data, filename='toymodel plot'):
+    data = np.array(data)
+    x = data[:, 0]
+    y = data[:, 1]
+    plt.scatter(x, y, c='r')
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.axis('equal')
     plt.savefig(filename)
+    plt.show()
+
 
 def priorTransform(theta):
     """
@@ -43,22 +50,24 @@ def ringLoglike(x):
 names = ['x', 'y']
 
 # logLike, priorTransform, nDims, bounds,  nlivepoints=50, names=None, LatexNames=None
-sampler = SkillingNS(ringLoglike, priorTransform, nDims, bounds,
-                     nlivepoints=nlive, names=names)
-result = sampler.sampler(accuracy=0.01, maxiter=5000, outputname='ring')
+sampler = NestedSampling(ringLoglike, priorTransform, nlive, nDims,
+                         outputname='outputs/ring', maxiter=5000)
+result = sampler.sampling(dlogz=0.1)
 postsamples = result['samples']
-plotterOutput(postsamples, 'ring')
+plotterOutput(postsamples, 'outputs/ring')
 
-sampler = SkillingNS(gaussLoglike, priorTransform, nDims, bounds,
-                     nlivepoints=nlive, names=names)
-result = sampler.sampler(accuracy=0.001, maxiter=5000, outputname='gauss')
-postsamples = result['samples']
-plotterOutput(postsamples, 'gauss')
+sampler = NestedSampling(gaussLoglike, priorTransform, nlive, nDims,
+                         outputname='outputs/gauss', maxiter=5000)
 
-sampler = SkillingNS(himmelLoglike, priorTransform, nDims, bounds,
-                     nlivepoints=nlive, names=names)
-result = sampler.sampler(accuracy=0.01, maxiter=5000, outputname='himmel')
+result = sampler.sampling(dlogz=0.01)
 postsamples = result['samples']
-plotterOutput(postsamples, 'himmel')
+plotterOutput(postsamples, 'outputs/gauss')
+
+sampler = NestedSampling(himmelLoglike, priorTransform, nlive, nDims,
+                         outputname='outputs/himmel', maxiter=5000)
+
+result = sampler.sampling(dlogz=0.01)
+postsamples = result['samples']
+plotterOutput(postsamples, 'outputs/himmel')
 
 
