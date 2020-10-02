@@ -5,8 +5,9 @@ import scipy as sc
 from scipy.optimize import minimize
 
 # Set npoints and ndims for N sphere
-npoints = 500
-ndims = 3
+npoints = 1000
+ndims = 6
+print("{} dimensions".format(ndims))
 
 # call NSphere class
 sphere = NSphere(ndims)
@@ -20,15 +21,12 @@ likes = sphere.logl_for_samples(points)
 samples = np.concatenate([points, likes], axis=1)
 
 # From here begins the volume calculation
-print(np.shape(samples[:, :ndims]))
 radius = np.sqrt(np.sum(samples[:, :ndims] ** 2, axis=1))
-print(np.shape(radius), type(radius))
 
 max_idx = np.argmax(radius)
-print(max_idx)
-
-
 max_vol = sphere.vol(radius[max_idx])
 
-print("Max volume: {}, point: {}, loglike: {}, idx: {}".format(max_vol, samples[max_idx, :ndims],
-                                                               samples[max_idx, ndims], max_idx))
+print("Max volume: {}, volr1: {}, ratio: {},"
+      "loglike: {},"
+      "radius: {}, ".format(max_vol, sphere.vol(1), max_vol/sphere.vol(1),
+                            samples[max_idx, ndims], radius[max_idx]))
