@@ -14,7 +14,6 @@ from getdist import *
 npoints = 100
 ndims = 3
 dim = True
-outputname = 'test_sampling_{}D_sphere_DIM_{}'.format(ndims, dim)
 
 # call NSphere class
 sphere = NSphere(ndims)
@@ -27,13 +26,14 @@ likes = sphere.logl_for_samples(points)
 # samples = np.concatenate([points, likes], axis=1)
 
 # Define bounds for free parameters
-sigmaLike = 0.3
-logL_bounds = [-4*sigmaLike*ndims, 0]
+sigmaLike = 0.5
+logL_bounds = [-ndims/2*(sigmaLike**2), 0]
 alpha_bounds = [0, 1]
 d_bounds = [1, 10]
-logxMax_bounds = [0, -1e4]
+logxMax_bounds = [0, -1]
 bounds_freeDim = [logL_bounds, logxMax_bounds, alpha_bounds, d_bounds]
 bounds_noDim = [logL_bounds, logxMax_bounds, alpha_bounds]
+outputname = 'test_sampling_{}D_sphere_DIM_{}_sigma{}'.format(ndims, dim, sigmaLike)
 
 logl = PropossalLogLike(likes, ndims, sigma=sigmaLike)
 # Define a priorTransform
@@ -46,11 +46,13 @@ else:
 
 nfreepars = len(bounds)
 
+
 def priorTransform(theta):
     points = []
     for c, bound in enumerate(bounds):
         points.append(theta[c]*(bound[1]-bound[0])+bound[0])
     return points
+
 
 sampler = dynesty.NestedSampler(loglike, priorTransform, nfreepars, bound='multi',
                                 sample='unif', nlive=100)
@@ -80,5 +82,6 @@ g.triangle_plot(mcsamplefile, [par[0] for par in pars],
 plt.savefig(filename+"_getdist.png")
 # the order is logL, logxMax, alpha, dim
 fig, ax = dyplot.cornerplot(results, color='blue', show_titles=True,
-                           quantiles=None)
+                            quantiles=None)
+
 plt.savefig(filename+"_dyplot.png")
