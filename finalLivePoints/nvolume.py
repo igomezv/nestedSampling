@@ -25,8 +25,16 @@ radius = np.sqrt(np.sum(samples[:, :ndims] ** 2, axis=1))
 
 max_idx = np.argmax(radius)
 max_vol = sphere.vol(radius[max_idx])
+# if r=1 -> unit_vol = vol_n(r=1)
+unit_vol = sphere.vol(1)
+# X_0 = 1 -> 1 / unit_vol = X_i / vol_n(ri)
+# ---------> X_i = cte vol_n(ri), where cte = 1/unit_vol
+cte = 1. / unit_vol
+# then X_max = cte * max_vol
 
-print("Max volume: {}, volr1: {}, ratio: {},"
-      "loglike: {},"
-      "radius: {}, ".format(max_vol, sphere.vol(1), max_vol/sphere.vol(1),
+print("---- \nMax volume: {} \nvolr1: {} \nratio: {} \n"
+      "constant: {} \nX_max: {} \n"
+      "loglike: {}\n"
+      "radius: {}\n----".format(max_vol, unit_vol, max_vol/unit_vol,
+                            cte, cte*max_vol,
                             samples[max_idx, ndims], radius[max_idx]))
