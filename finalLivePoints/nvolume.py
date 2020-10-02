@@ -36,5 +36,5 @@ print("---- \nMax volume: {} \nvolr1: {} \nratio: {} \n"
       "constant: {} \nX_max: {} \n"
       "loglike: {}\n"
       "radius: {}\n----".format(max_vol, unit_vol, max_vol/unit_vol,
-                            cte, cte*max_vol,
-                            samples[max_idx, ndims], radius[max_idx]))
+                                cte, cte*max_vol,
+                                samples[max_idx, ndims], radius[max_idx]))
