@@ -1,5 +1,5 @@
 from NSphere import NSphere
-from PropossalLogLike import PropossalLogLike
+from PropossalLogLikeDet import PropossalLogLikeDet
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from dynesty import plotting as dyplot
@@ -11,9 +11,10 @@ from getdist import plots, MCSamples, chains
 from getdist import *
 
 # Set npoints and ndims for N sphere
-npoints = 100
+npoints = 5
 ndims = 3
-dim = True
+# if dim == True -> dim is free paramaterer
+dim = False
 
 # call NSphere class
 sphere = NSphere(ndims)
@@ -23,19 +24,21 @@ points = sphere.sampling(npoints)
 
 # Obtain likes and vols for each sample
 likes = sphere.logl_for_samples(points)
-# samples = np.concatenate([points, likes], axis=1)
+samples = np.concatenate([points, likes], axis=1)
 
 # Define bounds for free parameters
 sigmaLike = 0.5
 logL_bounds = [-ndims/2*(sigmaLike**2), 0]
-alpha_bounds = [0, 1]
+# alpha_bounds = [0, 1]
 d_bounds = [1, 10]
 logxMax_bounds = [0, -1]
-bounds_freeDim = [logL_bounds, logxMax_bounds, alpha_bounds, d_bounds]
-bounds_noDim = [logL_bounds, logxMax_bounds, alpha_bounds]
+# bounds_freeDim = [logL_bounds, logxMax_bounds, alpha_bounds, d_bounds]
+# bounds_noDim = [logL_bounds, logxMax_bounds, alpha_bounds]
+bounds_freeDim = [logL_bounds, logxMax_bounds, d_bounds]
+bounds_noDim = [logL_bounds, logxMax_bounds]
 outputname = 'test_sampling_{}D_sphere_DIM_{}_sigma{}'.format(ndims, dim, sigmaLike)
 
-logl = PropossalLogLike(likes, ndims, sigma=sigmaLike)
+logl = PropossalLogLikeDet(samples, ndims, sigma=sigmaLike)
 # Define a priorTransform
 if dim:
     bounds = bounds_freeDim
@@ -61,7 +64,8 @@ sampler.results.summary()
 
 results = sampler.results
 
-pars = [['logL', 'logL_{max}'], ['logX', 'logX_{max}'], ['alpha', '\\alpha']]
+# pars = [['logL', 'logL_{max}'], ['logX', 'logX_{max}'], ['alpha', '\\alpha']]
+pars = [['logL', 'logL_{max}'], ['logX', 'logX_{max}']]
 
 if dim:
     pars.append(['dim', 'dim'])
@@ -70,7 +74,7 @@ saveDynestyChain(results, "../outputs/{}".format(outputname), pars)
 filename = '../outputs/{}'.format(outputname)
 mcsamplefile = mcsamples.loadMCSamples(filename, ini=None, jobItem=None, no_cache=False)
 g = plots.getSubplotPlotter(width_inch=10,
-                           analysis_settings={'smooth_scale_2D': 0.8,
+                            analysis_settings={'smooth_scale_2D': 0.8,
                                               'smooth_scale_1D': 0.8})
 g.settings.lab_fontsize = 10
 g.settings.legend_fontsize = 9
