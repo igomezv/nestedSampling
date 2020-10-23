@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import loggamma, gamma
 
+
 class NSphere:
     def __init__(self, ndims, sigma=0.5):
         self.ndims = ndims
