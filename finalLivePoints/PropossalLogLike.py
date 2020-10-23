@@ -18,7 +18,7 @@ class PropossalLogLike:
         i = np.arange(1, self.N + 1)
         chisq = np.sum(((self.datalikes -
                          self.propossal_fn(loglmax, logxMax, i, alpha, d)) /
-                        self.sigma) ** 2)
+                         self.sigma) ** 2)
 
         return 0.5 * chisq
 

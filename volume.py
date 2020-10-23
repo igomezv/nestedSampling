@@ -7,11 +7,14 @@ import matplotlib.pyplot as plt
 from scipy.special import gammaln
 from scipy.special import gamma
 
+
 def priorTransform(theta):
     return theta
 
+
 def logLike(theta):
     return -1/2/0.1**2 * ((theta-0.5)**2).sum()
+
 
 def volNsphere(r, n):
     m = n / 2 + 1
@@ -27,7 +30,7 @@ samples = NestedSamples(root='outputs/gaussian')
 samples.plot_2d([0, 1])
 plt.show()
 
-last_samp = samples.iloc[-200, :ndims]
+last_samp = samples.iloc[-100, :ndims]
 radius = np.sqrt(((last_samp - 0.5)**2).sum())
 # volume = ((last_samp - 0.5)**2).sum() * np.pi # volume is pi r^2
 volume = volNsphere(radius, ndims)

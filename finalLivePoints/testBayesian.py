@@ -11,7 +11,7 @@ from getdist import plots, MCSamples, chains
 from getdist import *
 
 # Set npoints and ndims for N sphere
-npoints = 5
+npoints = 10
 ndims = 3
 # if dim == True -> dim is free paramaterer
 dim = False
@@ -25,13 +25,14 @@ points = sphere.sampling(npoints)
 # Obtain likes and vols for each sample
 likes = sphere.logl_for_samples(points)
 samples = np.concatenate([points, likes], axis=1)
+np.savetxt('samples.txt', samples)
 
 # Define bounds for free parameters
 sigmaLike = 0.5
 logL_bounds = [-ndims/2*(sigmaLike**2), 0]
 # alpha_bounds = [0, 1]
 d_bounds = [1, 10]
-logxMax_bounds = [0, -1]
+logxMax_bounds = [0, -2]
 # bounds_freeDim = [logL_bounds, logxMax_bounds, alpha_bounds, d_bounds]
 # bounds_noDim = [logL_bounds, logxMax_bounds, alpha_bounds]
 bounds_freeDim = [logL_bounds, logxMax_bounds, d_bounds]

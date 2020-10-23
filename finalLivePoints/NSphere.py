@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.special import loggamma, gamma
+from scipy.special import loggamma, gamma, logsumexp
 
 
 class NSphere:
@@ -27,9 +27,9 @@ class NSphere:
         m = self.ndims / 2 + 1
         return self.ndims*np.log(r) + (self.ndims/2)*np.log(np.pi) - loggamma(m)
 
-
     def loglike(self, x):
         return -np.sum(x ** 2) / 2 / self.sigma ** 2
+        # return - logsumexp(x ** 2) - 2 - 2*self.sigma
 
     def logl_for_samples(self, array):
         """
