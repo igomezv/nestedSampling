@@ -18,32 +18,37 @@ class PropossalLogLikeDet:
         print(np.shape(self.points))
         cov_matrix = np.cov(self.points)
         print(np.shape(cov_matrix))
-        scale_cov_matrix = cov_matrix / np.amax(cov_matrix, axis=0, keepdims=True)
-        self.det = np.linalg.det(scale_cov_matrix)
+        # scale_cov_matrix = cov_matrix / np.amax(cov_matrix, axis=0, keepdims=True)
+        # ort_cov_matrix, _ = np.linalg.qr(cov_matrix)
+        _, self.logdet = np.linalg.slogdet(cov_matrix)
         print("|cov|: {}".format(self.det))
 
         sphere = NSphere(ndims)
         self.unit_vol = sphere.vol(1)
+        print("unit vol {}".format(self.unit_vol))
+        print(np.sqrt(self.det))
+        self.logcte = 0. - (self.logdet/2 + self.unit_vol)
+        print(self.logcte)
 
-    def propossal_fn(self, logLmax, xMax, i, d):
-        # xMax = np.exp(logxMax)
-        return logLmax - 0.5 * np.sign(xMax) * (1./(self.unit_vol*np.power(self.det, 1./d))) *\
-               np.sign(xMax) * ((i * np.abs(xMax) / self.N) ** (2 / d))
+    def propossal_fn(self, logLmax, logxMax, i, d):
+        xMax = np.exp(logxMax)
+        return logLmax - 0.5 * np.sign(xMax) * self.cte * \
+               np.sign(xMax) * (i * np.abs(xMax) / self.N) ** (2 / d)
 
     def loglike_freeDim(self, theta):
-        loglmax, xMax, d = theta
+        loglmax, logxMax, d = theta
         i = np.arange(1, self.N + 1)
         chisq = np.sum(((self.datalikes -
-                         self.propossal_fn(loglmax, xMax, i, d)) /
+                         self.propossal_fn(loglmax, logxMax, i, d)) /
                          self.sigma) ** 2)
 
         return 0.5 * chisq
 
     def loglike_noDim(self, theta):
-        loglmax, xMax = theta
+        loglmax, logxMax = theta
         i = np.arange(1, self.N + 1)
         chisq = np.sum(((self.datalikes -
-                         self.propossal_fn(loglmax, xMax, i, self.ndims)) /
+                         self.propossal_fn(loglmax, logxMax, i, self.ndims)) /
                         self.sigma) ** 2)
 
         return 0.5 * chisq
