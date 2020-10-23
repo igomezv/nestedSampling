@@ -2,6 +2,7 @@ import numpy as np
 from NSphere import NSphere
 np.set_printoptions(precision=10)
 
+
 class PropossalLogLikeDet:
     def __init__(self, data, ndims, sigma=0.5):
         self.N = len(data)
@@ -18,22 +19,24 @@ class PropossalLogLikeDet:
         print(np.shape(self.points))
         cov_matrix = np.cov(self.points)
         print(np.shape(cov_matrix))
-        # scale_cov_matrix = cov_matrix / np.amax(cov_matrix, axis=0, keepdims=True)
-        # ort_cov_matrix, _ = np.linalg.qr(cov_matrix)
-        _, self.logdet = np.linalg.slogdet(cov_matrix)
-        print("|cov|: {}".format(self.det))
+        # slogdet returns -np.inf
+        # _, self.logdet = np.linalg.slogdet(cov_matrix)
+        eigvals, _ = np.linalg.eigh(cov_matrix)
+        self.logdet = np.sum(eigvals)
+        print("log(|cov|): {}".format(self.logdet))
 
         sphere = NSphere(ndims)
-        self.unit_vol = sphere.vol(1)
-        print("unit vol {}".format(self.unit_vol))
-        print(np.sqrt(self.det))
-        self.logcte = 0. - (self.logdet/2 + self.unit_vol)
-        print(self.logcte)
+        self.unit_logvol = sphere.logvol(1)
+        print("unit log-vol {}".format(self.unit_logvol))
+        print(np.sqrt(self.logdet))
+        # ct -> constant; logct -> log(ct)
+        self.logct = 0. - (self.logdet/2 + self.unit_logvol)
+        print(self.logct)
 
     def propossal_fn(self, logLmax, logxMax, i, d):
         xMax = np.exp(logxMax)
-        return logLmax - 0.5 * np.sign(xMax) * self.cte * \
-               np.sign(xMax) * (i * np.abs(xMax) / self.N) ** (2 / d)
+        return logLmax - 0.5 * np.sign(xMax) * np.exp(self.logct) * \
+               (i * np.abs(xMax) / self.N) ** (2 / d)
 
     def loglike_freeDim(self, theta):
         loglmax, logxMax, d = theta
