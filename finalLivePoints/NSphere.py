@@ -1,5 +1,6 @@
 import numpy as np
-from scipy.special import gamma
+from scipy.special import loggamma
+# Use instead loggamma
 
 
 class NSphere:
@@ -19,9 +20,14 @@ class NSphere:
 
     def vol(self, r):
         # r radius
-        # n dim
         m = self.ndims / 2 + 1
         return r ** self.ndims * (np.power(np.pi, self.ndims / 2) / gamma(m))
+
+    def logvol(self, r):
+        # r radius
+        m = self.ndims / 2 + 1
+        return self.ndims*np.log(r) + (self.ndims/2)*np.log(np.pi) - loggamma(m)
+
 
     def loglike(self, x):
         return -np.sum(x ** 2) / 2 / self.sigma ** 2
