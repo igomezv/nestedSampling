@@ -17,12 +17,14 @@ class PropossalLogLikeDet:
         self.points = points[sort_by_likes]
         self.datalikes = datalikes[sort_by_likes]
         print(np.shape(self.points))
-        cov_matrix = np.cov(self.points)
+        cov_matrix = np.cov(self.points.T)
         print(np.shape(cov_matrix))
         # slogdet returns -np.inf
-        # _, self.logdet = np.linalg.slogdet(cov_matrix)
-        eigvals, _ = np.linalg.eigh(cov_matrix)
-        self.logdet = np.sum(eigvals)
+        _, self.logdet = np.linalg.slogdet(cov_matrix)
+        # eigvals, _ = np.linalg.eigh(cov_matrix)
+        # print(eigvals)
+        # self.logdet = np.sum(eigvals)
+        # self.logdet
         print("log(|cov|): {}".format(self.logdet))
 
         sphere = NSphere(ndims)
@@ -30,13 +32,13 @@ class PropossalLogLikeDet:
         print("unit log-vol {}".format(self.unit_logvol))
         print(np.sqrt(self.logdet))
         # ct -> constant; logct -> log(ct)
-        self.logct = 0. - (self.logdet/2 + self.unit_logvol)
+        self.logct = - (self.logdet/2 + self.unit_logvol)
         print(self.logct)
 
     def propossal_fn(self, logLmax, logxMax, i, d):
         xMax = np.exp(logxMax)
         return logLmax - 0.5 * np.sign(xMax) * np.exp(self.logct) * \
-               (i * np.abs(xMax) / self.N) ** (2 / d)
+               np.power((i * np.abs(xMax) / self.N), (2 / d))
 
     def loglike_freeDim(self, theta):
         loglmax, logxMax, d = theta
@@ -52,7 +54,7 @@ class PropossalLogLikeDet:
         i = np.arange(1, self.N + 1)
         chisq = np.sum(((self.datalikes -
                          self.propossal_fn(loglmax, logxMax, i, self.ndims)) /
-                        self.sigma) ** 2)
+                         self.sigma) ** 2)
 
         return 0.5 * chisq
 
